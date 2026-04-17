@@ -1,6 +1,13 @@
 # Sublist Web
 
-Premium Apple-leaning subscription tracker built as the real app surface, not a landing page. The project is static-export-friendly for GitHub Pages and stores all user data in localStorage.
+Premium Apple-leaning subscription tracker built as the real app surface, not a landing page. The app is designed around a mockup-led desktop scene with a softer Apple-style shell, responsive mobile navigation, localStorage persistence, and static export support for GitHub Pages.
+
+## Current Focus
+
+- mockup-aligned desktop composition on the home route
+- interactive root scene instead of a dead static render
+- shared visual shell across dashboard, subscriptions, calendar, and settings
+- local-first data flow with seeded demo subscriptions
 
 ## Stack
 
@@ -68,3 +75,4 @@ That serves the generated `out/` folder at `http://localhost:3000`.
 - Demo data seeds on first load only.
 - All app data persists in localStorage.
 - The UI includes a desktop sidebar, mobile tab bar, dashboard charts, subscription detail panel, calendar view, and settings workspace.
+- The `/` route uses a visual reconstruction scene while still exposing real navigation and selection state.
