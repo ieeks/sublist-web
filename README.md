@@ -54,6 +54,8 @@ That serves the generated `out/` folder at `http://localhost:3000`.
 
 - The project is configured for a repository named `sublist-web`.
 - `next.config.ts` sets `output: "export"`, `trailingSlash: true`, `basePath`, and `assetPrefix` for GitHub Pages.
+- In local development, the app runs without the `/sublist-web` prefix so routes and assets work normally at `http://localhost:3000`.
+- In production builds, `basePath` and `assetPrefix` switch to `/sublist-web` so the exported site works correctly on GitHub Pages.
 - If you rename the repository, update the `basePath` and `assetPrefix` values in `next.config.ts`.
 
 ## CSV Notes
