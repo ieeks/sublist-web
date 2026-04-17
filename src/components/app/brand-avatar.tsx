@@ -2,16 +2,18 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
+const assetBase = process.env.NODE_ENV === "production" ? "/sublist-web" : "";
+
 const logoMap: Record<string, string> = {
-  chatgpt: "/assets/logos/chatgpt.svg",
-  claude: "/assets/logos/claude.svg",
-  netflix: "/assets/logos/netflix.svg",
-  "icloud-plus": "/assets/logos/icloud-plus.svg",
-  perplexity: "/assets/logos/perplexity.svg",
-  "google-ai-pro": "/assets/logos/google-ai-pro.svg",
-  digitalocean: "/assets/logos/digitalocean.svg",
-  "github-copilot": "/assets/logos/github-copilot.svg",
-  "apple-tv-plus": "/assets/logos/apple-tv-plus.svg",
+  chatgpt: `${assetBase}/assets/logos/chatgpt.svg`,
+  claude: `${assetBase}/assets/logos/claude.svg`,
+  netflix: `${assetBase}/assets/logos/netflix.svg`,
+  "icloud-plus": `${assetBase}/assets/logos/icloud-plus.svg`,
+  perplexity: `${assetBase}/assets/logos/perplexity.svg`,
+  "google-ai-pro": `${assetBase}/assets/logos/google-ai-pro.svg`,
+  digitalocean: `${assetBase}/assets/logos/digitalocean.svg`,
+  "github-copilot": `${assetBase}/assets/logos/github-copilot.svg`,
+  "apple-tv-plus": `${assetBase}/assets/logos/apple-tv-plus.svg`,
 };
 
 export function BrandAvatar({
