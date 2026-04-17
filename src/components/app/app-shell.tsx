@@ -37,14 +37,14 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.96),_rgba(243,244,248,0.92)_55%,_#eef1f6_100%)] text-[#111827]">
-      <div className="mx-auto flex min-h-screen max-w-[1260px] flex-col px-3 py-3 sm:px-5 sm:py-5">
-        <div className="flex min-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[30px] border border-[#ebeef4] bg-[linear-gradient(180deg,#f9fafc_0%,#f5f7fb_100%)] shadow-[0_40px_120px_-70px_rgba(15,23,42,0.28)] lg:grid lg:grid-cols-[212px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-[#edf0f5] bg-[linear-gradient(180deg,#f9fafc_0%,#f3f5f9_100%)] px-4 pb-5 pt-5 lg:flex lg:flex-col">
+      <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col px-3 py-3 sm:px-5 sm:py-5">
+        <div className="flex min-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-[#ebeef4] bg-[linear-gradient(180deg,#fafbfd_0%,#f5f7fb_100%)] shadow-[0_38px_110px_-72px_rgba(15,23,42,0.26)] lg:grid lg:grid-cols-[198px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-[#edf0f5] bg-[linear-gradient(180deg,#f9fafc_0%,#f4f6fa_100%)] px-4 pb-5 pt-5 lg:flex lg:flex-col">
           <div className="px-2">
             <div className="text-[11px] font-semibold tracking-[-0.02em] text-[#495062]">Sublist</div>
           </div>
 
-          <div className="mt-4 rounded-[16px] bg-[#f4f6fb] p-2">
+          <div className="mt-4 rounded-[14px] bg-[#f3f5f9] p-2">
             <nav className="space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
@@ -54,7 +54,7 @@ export function AppShell({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[12px] font-medium transition",
+                      "flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[11px] font-medium transition",
                       active
                         ? "bg-[#d8e7ff] text-[#3b82f6]"
                         : "text-[#7c8494] hover:bg-white hover:text-[#111827]",
@@ -70,11 +70,11 @@ export function AppShell({
 
           <div className="mt-5 px-2">
             <div className="text-[11px] font-medium text-[#b0b6c4]">Subscriptions</div>
-            <div className="mt-2 space-y-1">
+            <div className="mt-2 space-y-0.5">
               {sidebarSubscriptions.map((subscription) => (
                 <div
                   key={subscription.id}
-                  className="flex items-center justify-between rounded-[10px] px-2 py-2 text-[12px] text-[#626b7c]"
+                  className="flex items-center justify-between rounded-[10px] px-2 py-2 text-[11px] text-[#687183]"
                 >
                   <span className="truncate">{subscription.name}</span>
                   <span className="text-[#c0c5d0]">••</span>
@@ -92,11 +92,13 @@ export function AppShell({
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-[#edf0f5] bg-white/86 px-4 py-4 backdrop-blur-xl sm:px-5 lg:px-6">
+          <header className="sticky top-0 z-30 border-b border-[#edf0f5] bg-white/88 px-4 py-3.5 backdrop-blur-xl sm:px-5 lg:px-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">{title}</h1>
-                <p className="mt-1 max-w-xl text-xs leading-5 text-[#a0a7b7]">{description}</p>
+                <h1 className="text-[18px] font-semibold tracking-[-0.05em] text-[#4b5263] lg:text-[19px]">{title}</h1>
+                <p className="mt-1 hidden max-w-xl text-[11px] leading-5 text-[#a0a7b7] md:block">
+                  {description}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 {actions ? <div className="hidden items-center gap-3 md:flex">{actions}</div> : null}
@@ -107,7 +109,7 @@ export function AppShell({
             </div>
           </header>
 
-          <main className="px-4 pb-24 pt-4 sm:px-5 lg:px-6 lg:pb-6">{children}</main>
+          <main className="px-4 pb-24 pt-3.5 sm:px-5 lg:px-6 lg:pb-6">{children}</main>
         </div>
       </div>
       </div>

@@ -78,6 +78,9 @@ export function SubscriptionsScreen() {
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center justify-between">
                 <div>
+                  <div className="text-[18px] font-semibold tracking-[-0.04em] text-[#4b5263] sm:hidden">
+                    Subscriptions
+                  </div>
                   <div className="text-[11px] text-[#a1a8b8]">Total due</div>
                   <div className="mt-1 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
                     {formatCurrency(totalDue, data.settings.defaultCurrency)}
@@ -163,8 +166,7 @@ export function SubscriptionsScreen() {
                           </div>
                         </div>
                         <div className="text-right text-[11px] text-[#a3aabd]">
-                          {formatCurrency(subscription.amountCents, subscription.currency)}
-                          <div className="mt-1">{formatCurrency(subscription.amountCents, subscription.currency) === "" ? "" : formatDateLabel(subscription.nextDueDate)}</div>
+                          <div>{formatDateLabel(subscription.nextDueDate)}</div>
                         </div>
                       </div>
                     </CardContent>

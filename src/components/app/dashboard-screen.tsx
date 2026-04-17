@@ -91,7 +91,7 @@ export function DashboardScreen() {
   }
 
   return (
-    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_250px_280px] xl:grid-cols-[minmax(0,1fr)_250px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_226px_250px]">
       <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           <MetricCard label="Total due" value={formatCurrency(totalDue, data.settings.defaultCurrency)} />
@@ -108,27 +108,27 @@ export function DashboardScreen() {
           />
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-[13px] text-[#6b7280]">Smart launches</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {upcomingRenewals.map((subscription) => (
                 <button
                   type="button"
                   key={subscription.id}
                   onClick={() => setSelectedId(subscription.id)}
-                  className="rounded-[16px] border border-[#eff2f6] bg-[#fbfcff] p-3 text-left transition hover:border-[#d8e7ff] hover:bg-white"
+                  className="rounded-[14px] border border-[#eff2f6] bg-[#fbfcff] p-3 text-left transition hover:border-[#d8e7ff] hover:bg-white"
                 >
                   <div className="flex items-center gap-3">
                     <BrandAvatar
                       logoKey={subscription.logoKey}
                       name={subscription.name}
-                      className="size-11 rounded-[14px]"
+                      className="size-10 rounded-[12px]"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-semibold text-[#4b5263]">
+                      <div className="truncate text-[12px] font-semibold text-[#4b5263]">
                         {subscription.name}
                       </div>
                       <div className="text-[11px] text-[#9ca3af]">
@@ -141,7 +141,7 @@ export function DashboardScreen() {
                       <span className="size-1.5 rounded-full bg-[#ff9f6e]" />
                       {format(parseISO(subscription.nextDueDate), "MMM d")}
                     </span>
-                    <span>{subscription.status}</span>
+                    <span className="capitalize">{subscription.status}</span>
                   </div>
                 </button>
               ))}
@@ -227,7 +227,7 @@ export function DashboardScreen() {
         </CardContent>
       </Card>
 
-      <div className="2xl:-ml-1 2xl:pt-6">
+      <div className="xl:-ml-1 xl:pt-4">
         <SubscriptionDetail subscriptionId={effectiveSelectedId} onEdit={() => undefined} />
       </div>
     </div>
@@ -239,7 +239,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
     <Card>
       <CardContent className="p-4">
         <div className="text-[11px] text-[#a2a9b9]">{label}</div>
-        <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+        <div className="mt-2 text-[26px] font-semibold tracking-[-0.05em] text-[#4b5263]">
           {value}
         </div>
       </CardContent>

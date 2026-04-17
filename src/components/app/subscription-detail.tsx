@@ -40,7 +40,7 @@ export function SubscriptionDetail({
   const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
 
   return (
-    <Card className="min-h-[420px] rounded-[24px] xl:rounded-[26px]">
+    <Card className="min-h-[420px] rounded-[24px] border-[#f0f2f6] shadow-[0_24px_60px_-38px_rgba(15,23,42,0.18)] xl:rounded-[26px]">
       <CardContent className="p-0">
         <div className="px-6 pb-5 pt-7">
           <div className="flex justify-center">
@@ -57,7 +57,7 @@ export function SubscriptionDetail({
             </h2>
           </div>
 
-          <div className="mt-4 flex justify-center gap-4 border-y border-[#f0f2f6] py-3 text-[11px] text-[#7f8797]">
+          <div className="mt-4 flex justify-center gap-4 border-y border-[#f0f2f6] py-3 text-[10px] text-[#7f8797]">
             <button type="button" onClick={onEdit} className="inline-flex items-center gap-1">
               <Pencil className="size-3.5" />
               Edit
@@ -81,7 +81,7 @@ export function SubscriptionDetail({
             </button>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-2.5">
             <DetailRow label="Amount" value={formatCurrency(subscription.amountCents, subscription.currency)} />
             <DetailRow label="Category" value={category?.name ?? "Unknown"} />
             <DetailRow label="Payment method" value={paymentMethod?.name ?? "Unknown"} />
@@ -136,7 +136,7 @@ export function SubscriptionDetail({
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-[12px]">
+    <div className="flex items-center justify-between gap-4 rounded-[10px] px-0.5 text-[12px]">
       <div className="text-[#a0a7b7]">{label}</div>
       <div className="text-right font-medium text-[#4b5263]">{value}</div>
     </div>
