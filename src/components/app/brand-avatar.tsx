@@ -41,7 +41,7 @@ export function BrandAvatar({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[24px] border border-white/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]",
+        "relative overflow-hidden rounded-[20px] border border-[#f0f2f6] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]",
         className,
       )}
     >
@@ -50,7 +50,7 @@ export function BrandAvatar({
         alt={`${name} logo`}
         fill
         sizes="96px"
-        className="object-contain p-4"
+        className="object-contain p-3"
       />
     </div>
   );

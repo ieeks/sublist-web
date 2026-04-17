@@ -40,19 +40,19 @@ export function SubscriptionDetail({
   const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
 
   return (
-    <Card className="min-h-[420px] rounded-[24px] border-[#f0f2f6] shadow-[0_24px_60px_-38px_rgba(15,23,42,0.18)] xl:rounded-[26px]">
+    <Card className="min-h-[420px] rounded-[22px] border-[#f0f2f6] shadow-[0_28px_70px_-38px_rgba(15,23,42,0.2)] xl:rounded-[24px]">
       <CardContent className="p-0">
-        <div className="px-6 pb-5 pt-7">
+        <div className="px-5 pb-4 pt-6">
           <div className="flex justify-center">
             <BrandAvatar
               logoKey={subscription.logoKey}
               name={subscription.name}
-              className="size-16 rounded-[18px]"
+              className="size-15 rounded-[16px]"
             />
           </div>
 
           <div className="mt-4 text-center">
-            <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-[#3f4656]">
+            <h2 className="text-[17px] font-semibold tracking-[-0.04em] text-[#3f4656]">
               {subscription.name}
             </h2>
           </div>
@@ -91,9 +91,9 @@ export function SubscriptionDetail({
             <DetailRow label="Total spent" value={formatCurrency(totalSpent, subscription.currency)} />
           </div>
 
-          <div className="mt-6">
+          <div className="mt-5">
             <div className="mb-3 text-[12px] font-semibold text-[#667085]">Payment History</div>
-            <ScrollArea className="h-[156px]">
+            <ScrollArea className="h-[148px]">
               <div className="space-y-2">
                 {history.slice(0, 6).map((item) => (
                   <div

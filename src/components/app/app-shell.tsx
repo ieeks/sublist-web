@@ -37,7 +37,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.96),_rgba(243,244,248,0.92)_55%,_#eef1f6_100%)] text-[#111827]">
-      <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col px-3 py-3 sm:px-5 sm:py-5">
+      <div className="mx-auto flex min-h-screen max-w-[1140px] flex-col px-3 py-3 sm:px-5 sm:py-5">
         <div className="flex min-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-[#ebeef4] bg-[linear-gradient(180deg,#fafbfd_0%,#f5f7fb_100%)] shadow-[0_38px_110px_-72px_rgba(15,23,42,0.26)] lg:grid lg:grid-cols-[198px_minmax(0,1fr)]">
         <aside className="hidden border-r border-[#edf0f5] bg-[linear-gradient(180deg,#f9fafc_0%,#f4f6fa_100%)] px-4 pb-5 pt-5 lg:flex lg:flex-col">
           <div className="px-2">
@@ -92,11 +92,11 @@ export function AppShell({
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-[#edf0f5] bg-white/88 px-4 py-3.5 backdrop-blur-xl sm:px-5 lg:px-6">
+          <header className="sticky top-0 z-30 border-b border-[#edf0f5] bg-white/88 px-4 py-3 backdrop-blur-xl sm:px-5 lg:px-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-[18px] font-semibold tracking-[-0.05em] text-[#4b5263] lg:text-[19px]">{title}</h1>
-                <p className="mt-1 hidden max-w-xl text-[11px] leading-5 text-[#a0a7b7] md:block">
+                <h1 className="text-[17px] font-semibold tracking-[-0.05em] text-[#4b5263] lg:text-[18px]">{title}</h1>
+                <p className="mt-0.5 hidden max-w-xl text-[10px] leading-4 text-[#b0b6c4] md:block xl:hidden">
                   {description}
                 </p>
               </div>
@@ -109,7 +109,7 @@ export function AppShell({
             </div>
           </header>
 
-          <main className="px-4 pb-24 pt-3.5 sm:px-5 lg:px-6 lg:pb-6">{children}</main>
+          <main className="px-4 pb-24 pt-3 sm:px-5 lg:px-6 lg:pb-6">{children}</main>
         </div>
       </div>
       </div>

@@ -72,7 +72,7 @@ export function SubscriptionsScreen() {
 
   return (
     <>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_230px]">
         <div className="space-y-4">
           <Card>
             <CardContent className="space-y-3 p-4">
@@ -82,7 +82,7 @@ export function SubscriptionsScreen() {
                     Subscriptions
                   </div>
                   <div className="text-[11px] text-[#a1a8b8]">Total due</div>
-                  <div className="mt-1 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+                  <div className="mt-1 text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">
                     {formatCurrency(totalDue, data.settings.defaultCurrency)}
                   </div>
                 </div>
@@ -133,7 +133,7 @@ export function SubscriptionsScreen() {
             </CardContent>
           </Card>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {filteredSubscriptions.map((subscription) => {
               const selected = effectiveSelectedId === subscription.id;
               return (
@@ -150,22 +150,22 @@ export function SubscriptionsScreen() {
                         : ""
                     }
                   >
-                    <CardContent className="p-3.5">
+                    <CardContent className="p-3">
                       <div className="flex items-center gap-3">
                         <BrandAvatar
                           logoKey={subscription.logoKey}
                           name={subscription.name}
-                          className="size-12 rounded-[14px]"
+                          className="size-11 rounded-[12px]"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-semibold text-[#4b5263]">
+                          <div className="text-[12px] font-semibold text-[#4b5263]">
                             {subscription.name}
                           </div>
                           <div className="text-[11px] text-[#9ca3af]">
                             {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                           </div>
                         </div>
-                        <div className="text-right text-[11px] text-[#a3aabd]">
+                        <div className="text-right text-[10px] text-[#a3aabd]">
                           <div>{formatDateLabel(subscription.nextDueDate)}</div>
                         </div>
                       </div>

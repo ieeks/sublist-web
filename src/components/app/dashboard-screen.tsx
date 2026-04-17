@@ -91,7 +91,7 @@ export function DashboardScreen() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_226px_250px]">
+    <div className="relative grid gap-4 xl:grid-cols-[minmax(0,1fr)_214px_230px]">
       <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           <MetricCard label="Total due" value={formatCurrency(totalDue, data.settings.defaultCurrency)} />
@@ -128,7 +128,7 @@ export function DashboardScreen() {
                       className="size-10 rounded-[12px]"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12px] font-semibold text-[#4b5263]">
+                      <div className="truncate text-[11px] font-semibold text-[#4b5263]">
                         {subscription.name}
                       </div>
                       <div className="text-[11px] text-[#9ca3af]">
@@ -227,7 +227,7 @@ export function DashboardScreen() {
         </CardContent>
       </Card>
 
-      <div className="xl:-ml-1 xl:pt-4">
+      <div className="xl:-ml-5 xl:pt-6">
         <SubscriptionDetail subscriptionId={effectiveSelectedId} onEdit={() => undefined} />
       </div>
     </div>
@@ -239,7 +239,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
     <Card>
       <CardContent className="p-4">
         <div className="text-[11px] text-[#a2a9b9]">{label}</div>
-        <div className="mt-2 text-[26px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+        <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
           {value}
         </div>
       </CardContent>
