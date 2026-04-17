@@ -1,37 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  endOfMonth,
-  format,
-  isWithinInterval,
-  parseISO,
-  startOfMonth,
-  subMonths,
-} from "date-fns";
-import { ArrowUpRight, BellRing, CalendarClock, Wallet } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-} from "recharts";
+import { format, parseISO } from "date-fns";
+import { CreditCard, Sparkles } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { useAppData } from "@/components/providers/app-providers";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, toMonthlyAmount } from "@/lib/utils";
-
-const chartPalette = ["#4f46e5", "#0ea5e9", "#10b981", "#f97316", "#e11d48"];
 
 export function DashboardScreen() {
   const { data, ready } = useAppData();
@@ -40,28 +17,37 @@ export function DashboardScreen() {
     [data.subscriptions],
   );
   const [selectedId, setSelectedId] = useState<string | undefined>(
-    activeSubscriptions[0]?.id,
+    activeSubscriptions[1]?.id ?? activeSubscriptions[0]?.id,
   );
   const effectiveSelectedId = activeSubscriptions.find((item) => item.id === selectedId)
     ? selectedId
     : activeSubscriptions[0]?.id;
 
-  const monthStart = startOfMonth(new Date());
-  const monthEnd = endOfMonth(new Date());
-
-  const dueThisMonth = activeSubscriptions.filter((subscription) =>
-    isWithinInterval(parseISO(subscription.nextDueDate), { start: monthStart, end: monthEnd }),
+  const totalDue = activeSubscriptions.reduce(
+    (total, subscription) => total + subscription.amountCents,
+    0,
   );
-
-  const monthlyAverage = activeSubscriptions.reduce(
+  const averagePerMonth = activeSubscriptions.reduce(
     (total, subscription) =>
       total + toMonthlyAmount(subscription.amountCents, subscription.billingCycle),
     0,
   );
+  const upcomingRenewals = [...activeSubscriptions]
+    .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate))
+    .slice(0, 6);
 
-  const categoryData = data.categories
+  const aiSpend = activeSubscriptions
+    .filter((subscription) => subscription.categoryId === "ai")
+    .reduce(
+      (total, subscription) =>
+        total + toMonthlyAmount(subscription.amountCents, subscription.billingCycle),
+      0,
+    );
+
+  const categoryBreakdown = data.categories
     .map((category) => ({
       name: category.name,
+      short: category.name.length > 13 ? `${category.name.slice(0, 13)}…` : category.name,
       value: activeSubscriptions
         .filter((subscription) => subscription.categoryId === category.id)
         .reduce(
@@ -71,11 +57,14 @@ export function DashboardScreen() {
         ),
       color: category.color,
     }))
-    .filter((item) => item.value > 0);
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 4);
 
-  const paymentMethodData = data.paymentMethods
+  const paymentBreakdown = data.paymentMethods
     .map((method) => ({
       name: method.name,
+      short: method.name.length > 13 ? `${method.name.slice(0, 13)}…` : method.name,
       value: activeSubscriptions
         .filter((subscription) => subscription.paymentMethodId === method.id)
         .reduce(
@@ -84,200 +73,111 @@ export function DashboardScreen() {
           0,
         ),
     }))
-    .filter((item) => item.value > 0);
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 4);
 
-  const monthlySpendData = Array.from({ length: 6 }, (_, index) => {
-    const date = subMonths(new Date(), 5 - index);
-    const label = format(date, "MMM");
-    const total = data.paymentHistory
-      .filter((entry) => format(parseISO(entry.date), "yyyy-MM") === format(date, "yyyy-MM"))
-      .reduce((sum, entry) => sum + entry.amountCents, 0);
-
-    return { label, total: total / 100 };
-  });
-
-  const upcomingRenewals = [...activeSubscriptions]
-    .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate))
-    .slice(0, 5);
+  const maxCategory = Math.max(...categoryBreakdown.map((item) => item.value), 1);
+  const maxPayment = Math.max(...paymentBreakdown.map((item) => item.value), 1);
 
   if (!ready) {
-    return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <Card key={index} className="h-32 animate-pulse bg-white/50" />)}</div>;
+    return (
+      <div className="grid gap-3 md:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Card key={index} className="h-28 animate-pulse bg-white/80" />
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <div className="space-y-5">
-        <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
-          <MetricCard
-            label="Total due this month"
-            value={formatCurrency(
-              dueThisMonth.reduce((total, subscription) => total + subscription.amountCents, 0),
-              data.settings.defaultCurrency,
-            )}
-            meta={`${dueThisMonth.length} renewal${dueThisMonth.length === 1 ? "" : "s"}`}
-            icon={<Wallet className="size-4" />}
-          />
+    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_250px_280px] xl:grid-cols-[minmax(0,1fr)_250px]">
+      <div className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <MetricCard label="Total due" value={formatCurrency(totalDue, data.settings.defaultCurrency)} />
           <MetricCard
             label="Average per month"
-            value={formatCurrency(monthlyAverage, data.settings.defaultCurrency)}
-            meta="Normalized across billing cycles"
-            icon={<ArrowUpRight className="size-4" />}
+            value={formatCurrency(averagePerMonth, data.settings.defaultCurrency)}
           />
           <MetricCard
             label="Upcoming renewals"
-            value={String(upcomingRenewals.length)}
-            meta="Next 5 tracked renewals"
-            icon={<BellRing className="size-4" />}
-          />
-          <MetricCard
-            label="Next due"
-            value={
-              upcomingRenewals[0]
-                ? format(parseISO(upcomingRenewals[0].nextDueDate), "MMM d")
-                : "None"
-            }
-            meta={upcomingRenewals[0]?.name ?? "No active subscriptions"}
-            icon={<CalendarClock className="size-4" />}
+            value={formatCurrency(
+              upcomingRenewals.reduce((total, subscription) => total + subscription.amountCents, 0),
+              data.settings.defaultCurrency,
+            )}
           />
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <Card>
-            <CardHeader>
-              <CardTitle>Spending over time</CardTitle>
-              <CardDescription>Last six months of recorded payments.</CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[13px] text-[#6b7280]">Smart launches</CardTitle>
             </CardHeader>
-            <CardContent className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlySpendData}>
-                  <defs>
-                    <linearGradient id="spend" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.34} />
-                      <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="4 4" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 18,
-                      border: "1px solid rgba(255,255,255,0.7)",
-                      boxShadow: "0 20px 60px -36px rgba(15,23,42,0.4)",
-                    }}
-                  />
-                  <Area type="monotone" dataKey="total" stroke="#4f46e5" strokeWidth={2.5} fill="url(#spend)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+              {upcomingRenewals.map((subscription) => (
+                <button
+                  type="button"
+                  key={subscription.id}
+                  onClick={() => setSelectedId(subscription.id)}
+                  className="rounded-[16px] border border-[#eff2f6] bg-[#fbfcff] p-3 text-left transition hover:border-[#d8e7ff] hover:bg-white"
+                >
+                  <div className="flex items-center gap-3">
+                    <BrandAvatar
+                      logoKey={subscription.logoKey}
+                      name={subscription.name}
+                      className="size-11 rounded-[14px]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold text-[#4b5263]">
+                        {subscription.name}
+                      </div>
+                      <div className="text-[11px] text-[#9ca3af]">
+                        {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-[#9ca3af]">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="size-1.5 rounded-full bg-[#ff9f6e]" />
+                      {format(parseISO(subscription.nextDueDate), "MMM d")}
+                    </span>
+                    <span>{subscription.status}</span>
+                  </div>
+                </button>
+              ))}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Upcoming this month</CardTitle>
-              <CardDescription>Closest renewal dates across active subscriptions.</CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[13px] text-[#6b7280]">Upcoming this month</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {dueThisMonth.length === 0 ? (
-                <div className="rounded-[24px] bg-[#f8fafc] p-4 text-sm text-[#64748b]">
-                  No renewals left this month.
-                </div>
-              ) : (
-                dueThisMonth
-                  .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate))
-                  .map((subscription) => (
-                    <button
-                      key={subscription.id}
-                      type="button"
-                      onClick={() => setSelectedId(subscription.id)}
-                      className="flex w-full items-center gap-4 rounded-[24px] bg-[#f8fafc] p-4 text-left transition hover:bg-white"
-                    >
-                      <BrandAvatar
-                        logoKey={subscription.logoKey}
-                        name={subscription.name}
-                        className="size-14"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium">{subscription.name}</div>
-                        <div className="text-sm text-[#64748b]">
-                          {format(parseISO(subscription.nextDueDate), "EEE, MMM d")}
-                        </div>
-                      </div>
-                      <div className="text-sm font-semibold">
-                        {formatCurrency(subscription.amountCents, subscription.currency)}
-                      </div>
-                    </button>
-                  ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Category breakdown</CardTitle>
-              <CardDescription>Monthly-equivalent spend by subscription type.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid h-[290px] gap-3 xl:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="h-[220px] xl:h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={categoryData} dataKey="value" innerRadius={54} outerRadius={84} paddingAngle={3}>
-                      {categoryData.map((entry, index) => (
-                        <Cell key={entry.name} fill={entry.color || chartPalette[index % chartPalette.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-3">
-                {categoryData.map((entry) => (
-                  <div key={entry.name} className="flex items-center justify-between rounded-[22px] bg-[#f8fafc] px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="size-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                      <span className="text-sm font-medium">{entry.name}</span>
-                    </div>
-                    <span className="text-sm font-semibold">
-                      {formatCurrency(entry.value, data.settings.defaultCurrency)}
-                    </span>
-                  </div>
+              <div className="flex items-center justify-between px-1 text-[11px] text-[#a4abbb]">
+                {["May", "Jun", "Jul", "Aug", "Sep", "Oct"].map((label) => (
+                  <span key={label}>{label}</span>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment method breakdown</CardTitle>
-              <CardDescription>How recurring spend maps to cards and accounts.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[290px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={paymentMethodData} layout="vertical" margin={{ left: 12 }}>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="4 4" horizontal={false} />
-                  <XAxis type="number" hide />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[16, 16, 16, 16]}>
-                    {paymentMethodData.map((entry, index) => (
-                      <Cell key={entry.name} fill={chartPalette[index % chartPalette.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-3 grid gap-3">
-                {paymentMethodData.map((entry, index) => (
-                  <div key={entry.name} className="flex items-center justify-between rounded-[22px] bg-[#f8fafc] px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="size-3 rounded-full"
-                        style={{ backgroundColor: chartPalette[index % chartPalette.length] }}
-                      />
-                      <span className="text-sm font-medium">{entry.name}</span>
+              <div className="relative h-2 rounded-full bg-[#edf1f6]">
+                <div className="absolute left-[4%] top-0 h-2 w-[35%] rounded-full bg-[#b8d2ff]" />
+              </div>
+              <div className="space-y-2">
+                {upcomingRenewals.slice(0, 3).map((subscription) => (
+                  <div
+                    key={subscription.id}
+                    className="flex items-center justify-between rounded-[14px] bg-[#fbfcff] px-3 py-2.5"
+                  >
+                    <div>
+                      <div className="text-[12px] font-semibold text-[#4b5263]">
+                        {subscription.name}
+                      </div>
+                      <div className="text-[11px] text-[#9ca3af]">
+                        {format(parseISO(subscription.nextDueDate), "MMM d")}
+                      </div>
                     </div>
-                    <span className="text-sm font-semibold">
-                      {formatCurrency(entry.value, data.settings.defaultCurrency)}
-                    </span>
+                    <div className="text-[12px] font-semibold text-[#596174]">
+                      {formatCurrency(subscription.amountCents, subscription.currency)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -286,45 +186,101 @@ export function DashboardScreen() {
         </div>
       </div>
 
-      <div className="space-y-5 xl:sticky xl:top-28 xl:self-start">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium text-[#64748b]">Focused detail</div>
-            <div className="text-xs uppercase tracking-[0.2em] text-[#94a3b8]">
-              Live subscription view
+      <Card className="self-start">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[13px] text-[#6b7280]">Smart insights</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="rounded-[16px] bg-[#fbfcff] p-3">
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[#fff1eb] text-[#ff8d60]">
+                <Sparkles className="size-3.5" />
+              </div>
+              <div>
+                <div className="text-[13px] font-semibold leading-5 text-[#4b5263]">
+                  You spend {formatCurrency(aiSpend, data.settings.defaultCurrency)} monthly on AI tools.
+                </div>
+              </div>
             </div>
           </div>
-          <Badge className="bg-white/80">Local only</Badge>
-        </div>
+
+          <InsightGroup
+            title="Category breakdown"
+            items={categoryBreakdown.map((item) => ({
+              label: item.short,
+              value: item.value,
+              accent: item.color,
+              max: maxCategory,
+            }))}
+          />
+
+          <InsightGroup
+            title="Payment methods"
+            items={paymentBreakdown.map((item) => ({
+              label: item.short,
+              value: item.value,
+              accent: "#7b8ddf",
+              max: maxPayment,
+            }))}
+            icon={<CreditCard className="size-3.5" />}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="2xl:-ml-1 2xl:pt-6">
         <SubscriptionDetail subscriptionId={effectiveSelectedId} onEdit={() => undefined} />
       </div>
     </div>
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  meta,
-  icon,
-}: {
-  label: string;
-  value: string;
-  meta: string;
-  icon: React.ReactNode;
-}) {
+function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <Badge className="bg-[#f8fafc] text-[#475569]">{label}</Badge>
-          <div className="flex size-10 items-center justify-center rounded-2xl bg-[#f8fafc] text-[#4f46e5]">
-            {icon}
-          </div>
+      <CardContent className="p-4">
+        <div className="text-[11px] text-[#a2a9b9]">{label}</div>
+        <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+          {value}
         </div>
-        <div className="mt-5 text-3xl font-semibold tracking-[-0.06em]">{value}</div>
-        <p className="mt-2 text-sm text-[#64748b]">{meta}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function InsightGroup({
+  title,
+  items,
+  icon,
+}: {
+  title: string;
+  items: Array<{ label: string; value: number; accent: string; max: number }>;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-[#667085]">
+        {icon}
+        {title}
+      </div>
+      <div className="space-y-2.5">
+        {items.map((item) => (
+          <div key={item.label} className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-[#7d8596]">
+              <span>{item.label}</span>
+              <span>{formatCurrency(item.value, "EUR")}</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-[#eef2f7]">
+              <div
+                className="h-1.5 rounded-full"
+                style={{
+                  width: `${Math.max((item.value / item.max) * 100, 14)}%`,
+                  backgroundColor: item.accent,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

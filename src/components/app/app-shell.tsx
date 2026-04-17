@@ -6,11 +6,11 @@ import {
   CalendarDays,
   CreditCard,
   LayoutGrid,
+  Lock,
   Settings2,
-  Sparkles,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { useAppData } from "@/components/providers/app-providers";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -32,25 +32,20 @@ export function AppShell({
   actions?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { data } = useAppData();
+  const sidebarSubscriptions = data.subscriptions.slice(0, 8);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(158,194,255,0.38),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(225,236,255,0.6),_transparent_26%),linear-gradient(180deg,_#f4f7fb_0%,_#eef2f8_48%,_#edf2f7_100%)] text-[#111827]">
-      <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col lg:grid lg:grid-cols-[288px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/40 bg-white/35 px-6 pb-8 pt-6 backdrop-blur-2xl lg:flex lg:flex-col">
-          <div className="flex items-center gap-3 px-2">
-            <div className="flex size-12 items-center justify-center rounded-[20px] bg-[#111827] text-white shadow-[0_22px_48px_-28px_rgba(17,24,39,0.85)]">
-              <Sparkles className="size-5" />
-            </div>
-            <div>
-              <div className="text-[0.72rem] uppercase tracking-[0.32em] text-[#94a3b8]">
-                Personal App
-              </div>
-              <div className="text-xl font-semibold tracking-[-0.04em]">Sublist</div>
-            </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.96),_rgba(243,244,248,0.92)_55%,_#eef1f6_100%)] text-[#111827]">
+      <div className="mx-auto flex min-h-screen max-w-[1260px] flex-col px-3 py-3 sm:px-5 sm:py-5">
+        <div className="flex min-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[30px] border border-[#ebeef4] bg-[linear-gradient(180deg,#f9fafc_0%,#f5f7fb_100%)] shadow-[0_40px_120px_-70px_rgba(15,23,42,0.28)] lg:grid lg:grid-cols-[212px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-[#edf0f5] bg-[linear-gradient(180deg,#f9fafc_0%,#f3f5f9_100%)] px-4 pb-5 pt-5 lg:flex lg:flex-col">
+          <div className="px-2">
+            <div className="text-[11px] font-semibold tracking-[-0.02em] text-[#495062]">Sublist</div>
           </div>
 
-          <div className="mt-8 rounded-[28px] border border-white/70 bg-white/65 p-3 shadow-[0_24px_80px_-52px_rgba(15,23,42,0.4)]">
-            <nav className="space-y-1.5">
+          <div className="mt-4 rounded-[16px] bg-[#f4f6fb] p-2">
+            <nav className="space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.href;
@@ -59,13 +54,13 @@ export function AppShell({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-[22px] px-4 py-3 text-sm font-medium transition",
+                      "flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[12px] font-medium transition",
                       active
-                        ? "bg-[#111827] text-white shadow-[0_26px_60px_-34px_rgba(17,24,39,0.7)]"
-                        : "text-[#64748b] hover:bg-white/80 hover:text-[#111827]",
+                        ? "bg-[#d8e7ff] text-[#3b82f6]"
+                        : "text-[#7c8494] hover:bg-white hover:text-[#111827]",
                     )}
                   >
-                    <Icon className="size-4" />
+                    <Icon className="size-3.5" />
                     {item.label}
                   </Link>
                 );
@@ -73,40 +68,52 @@ export function AppShell({
             </nav>
           </div>
 
-          <div className="mt-auto rounded-[28px] border border-white/70 bg-white/70 p-5 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.38)]">
-            <Badge className="w-fit bg-[#eff6ff] text-[#2563eb]">Synced locally</Badge>
-            <h2 className="mt-4 text-lg font-semibold tracking-[-0.03em]">
-              Quiet, focused tracking.
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-[#64748b]">
-              A private subscription workspace with local persistence, premium spacing,
-              and no filler screens.
-            </p>
+          <div className="mt-5 px-2">
+            <div className="text-[11px] font-medium text-[#b0b6c4]">Subscriptions</div>
+            <div className="mt-2 space-y-1">
+              {sidebarSubscriptions.map((subscription) => (
+                <div
+                  key={subscription.id}
+                  className="flex items-center justify-between rounded-[10px] px-2 py-2 text-[12px] text-[#626b7c]"
+                >
+                  <span className="truncate">{subscription.name}</span>
+                  <span className="text-[#c0c5d0]">••</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto px-2 pt-4">
+            <div className="flex items-center gap-2 text-[11px] text-[#a3acbc]">
+              <span className="size-1.5 rounded-full bg-[#9cd58c]" />
+              Personal tracker
+            </div>
           </div>
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-white/40 bg-white/45 px-4 py-4 backdrop-blur-2xl sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <header className="sticky top-0 z-30 border-b border-[#edf0f5] bg-white/86 px-4 py-4 backdrop-blur-xl sm:px-5 lg:px-6">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-[0.72rem] uppercase tracking-[0.28em] text-[#94a3b8]">
-                  Subscription Tracker
-                </div>
-                <h1 className="mt-1 text-3xl font-semibold tracking-[-0.05em]">{title}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64748b]">
-                  {description}
-                </p>
+                <h1 className="text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">{title}</h1>
+                <p className="mt-1 max-w-xl text-xs leading-5 text-[#a0a7b7]">{description}</p>
               </div>
-              {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
+              <div className="flex items-center gap-3">
+                {actions ? <div className="hidden items-center gap-3 md:flex">{actions}</div> : null}
+                <div className="flex size-8 items-center justify-center rounded-full border border-[#edf0f5] bg-[#fafbfe] text-[#98a1b2]">
+                  <Lock className="size-3.5" />
+                </div>
+              </div>
             </div>
           </header>
 
-          <main className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-8">{children}</main>
+          <main className="px-4 pb-24 pt-4 sm:px-5 lg:px-6 lg:pb-6">{children}</main>
         </div>
       </div>
+      </div>
 
-      <div className="fixed inset-x-0 bottom-4 z-40 px-4 lg:hidden">
-        <div className="mx-auto flex max-w-md items-center justify-between rounded-[28px] border border-white/70 bg-white/88 p-2 shadow-[0_28px_90px_-45px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
+      <div className="fixed inset-x-0 bottom-3 z-40 px-3 lg:hidden">
+        <div className="mx-auto flex max-w-sm items-center justify-between rounded-[18px] border border-[#edf0f5] bg-white px-1.5 py-1.5 shadow-[0_16px_40px_-28px_rgba(15,23,42,0.22)]">
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
@@ -115,11 +122,11 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-1 rounded-[22px] px-3 py-2.5 text-[0.72rem] font-medium transition",
-                  active ? "bg-[#111827] text-white" : "text-[#64748b]",
+                  "flex flex-1 flex-col items-center gap-1 rounded-[14px] px-2 py-2 text-[10px] font-medium transition",
+                  active ? "bg-[#eef4ff] text-[#3b82f6]" : "text-[#8891a3]",
                 )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-3.5" />
                 {item.label}
               </Link>
             );

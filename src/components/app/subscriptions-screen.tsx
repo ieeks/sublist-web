@@ -1,13 +1,12 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Search, SlidersHorizontal, Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialog";
 import { useAppData } from "@/components/providers/app-providers";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
@@ -27,8 +25,7 @@ export function SubscriptionsScreen() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [showArchived, setShowArchived] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | undefined>();
+  const [selectedId, setSelectedId] = useState<string | undefined>(data.subscriptions[0]?.id);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | undefined>();
   const deferredQuery = useDeferredValue(query);
@@ -36,11 +33,7 @@ export function SubscriptionsScreen() {
   const filteredSubscriptions = useMemo(
     () =>
       data.subscriptions
-        .filter((subscription) =>
-          showArchived
-            ? subscription.status === "archived"
-            : subscription.status !== "archived",
-        )
+        .filter((subscription) => subscription.status !== "archived")
         .filter((subscription) =>
           categoryFilter === "all" ? true : subscription.categoryId === categoryFilter,
         )
@@ -51,7 +44,7 @@ export function SubscriptionsScreen() {
           subscription.name.toLowerCase().includes(deferredQuery.toLowerCase()),
         )
         .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate)),
-    [data.subscriptions, showArchived, categoryFilter, paymentFilter, deferredQuery],
+    [categoryFilter, data.subscriptions, deferredQuery, paymentFilter],
   );
 
   const effectiveSelectedId = filteredSubscriptions.find((item) => item.id === selectedId)
@@ -68,148 +61,121 @@ export function SubscriptionsScreen() {
     setDialogOpen(true);
   }
 
+  const totalDue = filteredSubscriptions.reduce(
+    (total, subscription) => total + subscription.amountCents,
+    0,
+  );
+
   if (!ready) {
-    return <Card className="h-56 animate-pulse bg-white/50" />;
+    return <Card className="h-56 animate-pulse bg-white/80" />;
   }
 
   return (
     <>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="space-y-4">
           <Card>
-            <CardContent className="grid gap-4 p-5 lg:grid-cols-[1.4fr_repeat(2,minmax(0,220px))_auto]">
-              <label className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#94a3b8]" />
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] text-[#a1a8b8]">Total due</div>
+                  <div className="mt-1 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+                    {formatCurrency(totalDue, data.settings.defaultCurrency)}
+                  </div>
+                </div>
+                <Button onClick={openCreateDialog} size="icon">
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#b0b6c4]" />
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search subscriptions"
-                  className="pl-11"
+                  placeholder="Search"
+                  className="h-10 rounded-[14px] pl-9 text-[13px]"
                 />
               </label>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All categories</SelectItem>
-                  {data.categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="h-10 rounded-[14px] text-[12px]">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {data.categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All payment methods</SelectItem>
-                  {data.paymentMethods.map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      {method.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center justify-between rounded-[24px] border border-black/6 bg-white px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-[#475569]">
-                  <SlidersHorizontal className="size-4" />
-                  Archived only
-                </div>
-                <Switch checked={showArchived} onCheckedChange={setShowArchived} />
+                <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                  <SelectTrigger className="h-10 rounded-[14px] text-[12px]">
+                    <SelectValue placeholder="All methods" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All methods</SelectItem>
+                    {data.paymentMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {method.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              <Button onClick={openCreateDialog}>
-                <Plus className="size-4" />
-                Add new
-              </Button>
             </CardContent>
           </Card>
 
-          <div className="grid gap-4">
-            {filteredSubscriptions.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-sm text-[#64748b]">
-                  No subscriptions match the current filters.
-                </CardContent>
-              </Card>
-            ) : (
-              filteredSubscriptions.map((subscription) => {
-                const category = data.categories.find((item) => item.id === subscription.categoryId);
-                const method = data.paymentMethods.find(
-                  (item) => item.id === subscription.paymentMethodId,
-                );
-                const active = subscription.id === selectedId;
-
-                return (
-                  <button
-                    type="button"
-                    key={subscription.id}
-                    onClick={() => setSelectedId(subscription.id)}
-                    className="text-left"
+          <div className="space-y-2.5">
+            {filteredSubscriptions.map((subscription) => {
+              const selected = effectiveSelectedId === subscription.id;
+              return (
+                <button
+                  type="button"
+                  key={subscription.id}
+                  onClick={() => setSelectedId(subscription.id)}
+                  className="block w-full text-left"
+                >
+                  <Card
+                    className={
+                      selected
+                        ? "border-[#dce7ff] shadow-[0_20px_44px_-30px_rgba(59,130,246,0.28)]"
+                        : ""
+                    }
                   >
-                    <Card
-                      className={
-                        active
-                          ? "border-[#bfd2ff] shadow-[0_36px_80px_-48px_rgba(79,70,229,0.55)]"
-                          : undefined
-                      }
-                    >
-                      <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center">
-                        <div className="flex items-center gap-4">
-                          <BrandAvatar
-                            logoKey={subscription.logoKey}
-                            name={subscription.name}
-                            className="size-16"
-                          />
-                          <div>
-                            <div className="flex items-center gap-3">
-                              <h2 className="text-lg font-semibold tracking-[-0.03em]">
-                                {subscription.name}
-                              </h2>
-                              <Badge className="bg-[#f8fafc] capitalize text-[#64748b]">
-                                {subscription.status}
-                              </Badge>
-                            </div>
-                            <div className="mt-1 text-sm text-[#64748b]">
-                              {category?.name} · {method?.name}
-                            </div>
+                    <CardContent className="p-3.5">
+                      <div className="flex items-center gap-3">
+                        <BrandAvatar
+                          logoKey={subscription.logoKey}
+                          name={subscription.name}
+                          className="size-12 rounded-[14px]"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-semibold text-[#4b5263]">
+                            {subscription.name}
+                          </div>
+                          <div className="text-[11px] text-[#9ca3af]">
+                            {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                           </div>
                         </div>
-
-                        <div className="grid flex-1 gap-3 sm:grid-cols-3">
-                          <DataPill label="Amount" value={formatCurrency(subscription.amountCents, subscription.currency)} />
-                          <DataPill label="Cycle" value={subscription.billingCycle} />
-                          <DataPill label="Next due" value={subscription.nextDueDate} />
+                        <div className="text-right text-[11px] text-[#a3aabd]">
+                          {formatCurrency(subscription.amountCents, subscription.currency)}
+                          <div className="mt-1">{formatCurrency(subscription.amountCents, subscription.currency) === "" ? "" : formatDateLabel(subscription.nextDueDate)}</div>
                         </div>
-
-                        <div className="flex gap-3 sm:justify-end">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openEditDialog(subscription);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </button>
-                );
-              })
-            )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="xl:sticky xl:top-28 xl:self-start">
+        <div className="hidden xl:block xl:self-start">
           <SubscriptionDetail
             subscriptionId={effectiveSelectedId}
             onEdit={() => {
@@ -231,11 +197,7 @@ export function SubscriptionsScreen() {
   );
 }
 
-function DataPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[22px] bg-[#f8fafc] px-4 py-3">
-      <div className="text-[0.72rem] uppercase tracking-[0.22em] text-[#94a3b8]">{label}</div>
-      <div className="mt-2 text-sm font-semibold capitalize text-[#111827]">{value}</div>
-    </div>
-  );
+function formatDateLabel(date: string) {
+  const parsed = new Date(date);
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

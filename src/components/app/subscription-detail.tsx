@@ -1,16 +1,14 @@
 "use client";
 
 import { format } from "date-fns";
-import { CalendarRange, CreditCard, PauseCircle, ReceiptText, Trash2 } from "lucide-react";
+import { Pencil, PauseCircle, Share2, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { daysUntil, formatCurrency, summarizeTotalSpent } from "@/lib/utils";
+import { formatCurrency, summarizeTotalSpent } from "@/lib/utils";
 
 export function SubscriptionDetail({
   subscriptionId,
@@ -24,9 +22,9 @@ export function SubscriptionDetail({
 
   if (!subscription) {
     return (
-      <Card className="h-full">
-        <CardContent className="flex min-h-[420px] items-center justify-center p-6 text-center text-sm text-[#64748b]">
-          Select a subscription to inspect billing details, payment history, and actions.
+      <Card className="min-h-[420px]">
+        <CardContent className="flex min-h-[420px] items-center justify-center p-6 text-center text-sm text-[#98a1b2]">
+          Select a subscription to inspect details.
         </CardContent>
       </Card>
     );
@@ -40,155 +38,107 @@ export function SubscriptionDetail({
     .filter((entry) => entry.subscriptionId === subscription.id)
     .sort((left, right) => right.date.localeCompare(left.date));
   const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
-  const dueIn = daysUntil(subscription.nextDueDate);
 
   return (
-    <Card className="h-full">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <BrandAvatar logoKey={subscription.logoKey} name={subscription.name} className="size-20" />
-            <div>
-              <h2 className="text-2xl font-semibold tracking-[-0.05em]">{subscription.name}</h2>
-              <p className="mt-1 text-sm text-[#64748b]">
-                {formatCurrency(subscription.amountCents, subscription.currency)} per{" "}
-                {subscription.billingCycle.slice(0, -2)}
-              </p>
-            </div>
+    <Card className="min-h-[420px] rounded-[24px] xl:rounded-[26px]">
+      <CardContent className="p-0">
+        <div className="px-6 pb-5 pt-7">
+          <div className="flex justify-center">
+            <BrandAvatar
+              logoKey={subscription.logoKey}
+              name={subscription.name}
+              className="size-16 rounded-[18px]"
+            />
           </div>
-          <Badge
-            className={
-              subscription.status === "active"
-                ? "bg-[#ecfdf5] text-[#059669]"
-                : subscription.status === "paused"
-                  ? "bg-[#fff7ed] text-[#ea580c]"
-                  : "bg-[#f1f5f9] text-[#64748b]"
-            }
-          >
-            {subscription.status}
-          </Badge>
-        </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <DetailTile label="Category" value={category?.name ?? "Unknown"} />
-          <DetailTile label="Payment method" value={paymentMethod?.name ?? "Unknown"} icon={<CreditCard className="size-4" />} />
-          <DetailTile label="Next due" value={format(new Date(subscription.nextDueDate), "MMM d, yyyy")} icon={<CalendarRange className="size-4" />} />
-          <DetailTile
-            label="Total spent"
-            value={formatCurrency(totalSpent, subscription.currency)}
-            icon={<ReceiptText className="size-4" />}
-          />
-          <DetailTile label="Rewards" value={subscription.rewards || "None"} />
-          <DetailTile label="Start date" value={format(new Date(subscription.startDate), "MMM d, yyyy")} />
-        </div>
-
-        <div className="mt-6 rounded-[24px] bg-[#f8fafc] p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-[#475569]">Renewal timing</div>
-              <p className="mt-1 text-sm text-[#64748b]">
-                {dueIn <= 0 ? "Due today" : `Due in ${dueIn} day${dueIn === 1 ? "" : "s"}`}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-[0.72rem] uppercase tracking-[0.22em] text-[#94a3b8]">
-                Billing cycle
-              </div>
-              <div className="mt-1 text-sm font-semibold capitalize text-[#111827]">
-                {subscription.billingCycle}
-              </div>
-            </div>
+          <div className="mt-4 text-center">
+            <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-[#3f4656]">
+              {subscription.name}
+            </h2>
           </div>
-        </div>
 
-        <div className="mt-6">
-          <div className="text-sm font-medium text-[#475569]">Notes</div>
-          <p className="mt-2 rounded-[24px] bg-[#f8fafc] p-4 text-sm leading-6 text-[#64748b]">
-            {subscription.notes || "No notes yet."}
-          </p>
-        </div>
+          <div className="mt-4 flex justify-center gap-4 border-y border-[#f0f2f6] py-3 text-[11px] text-[#7f8797]">
+            <button type="button" onClick={onEdit} className="inline-flex items-center gap-1">
+              <Pencil className="size-3.5" />
+              Edit
+            </button>
+            <button type="button" className="inline-flex items-center gap-1 text-[#a2a9b9]">
+              <Share2 className="size-3.5" />
+              Share
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                updateSubscriptionStatus(
+                  subscription.id,
+                  subscription.status === "paused" ? "active" : "paused",
+                )
+              }
+              className="inline-flex items-center gap-1"
+            >
+              <PauseCircle className="size-3.5" />
+              {subscription.status === "paused" ? "Resume" : "Suspend"}
+            </button>
+          </div>
 
-        <Separator className="my-6" />
+          <div className="mt-4 space-y-3">
+            <DetailRow label="Amount" value={formatCurrency(subscription.amountCents, subscription.currency)} />
+            <DetailRow label="Category" value={category?.name ?? "Unknown"} />
+            <DetailRow label="Payment method" value={paymentMethod?.name ?? "Unknown"} />
+            <DetailRow label="Rewards" value={subscription.rewards || "None"} />
+            <DetailRow label="Start date" value={format(new Date(subscription.startDate), "MMM d, yyyy")} />
+            <DetailRow label="Next due" value={format(new Date(subscription.nextDueDate), "MMM d")} />
+            <DetailRow label="Total spent" value={formatCurrency(totalSpent, subscription.currency)} />
+          </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={onEdit}>Edit details</Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              updateSubscriptionStatus(
-                subscription.id,
-                subscription.status === "paused" ? "active" : "paused",
-              )
-            }
-          >
-            <PauseCircle className="size-4" />
-            {subscription.status === "paused" ? "Resume" : "Pause"}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              updateSubscriptionStatus(
-                subscription.id,
-                subscription.status === "archived" ? "active" : "archived",
-              )
-            }
-          >
-            {subscription.status === "archived" ? "Restore" : "Archive"}
-          </Button>
-          <Button variant="destructive" onClick={() => deleteSubscription(subscription.id)}>
-            <Trash2 className="size-4" />
-            Delete
-          </Button>
-        </div>
-
-        <div className="mt-6">
-          <div className="mb-3 text-sm font-medium text-[#475569]">Payment history</div>
-          <ScrollArea className="h-[240px]">
-            <div className="space-y-3">
-              {history.length === 0 ? (
-                <p className="rounded-[22px] bg-[#f8fafc] p-4 text-sm text-[#64748b]">
-                  No payment history yet.
-                </p>
-              ) : (
-                history.map((item) => (
+          <div className="mt-6">
+            <div className="mb-3 text-[12px] font-semibold text-[#667085]">Payment History</div>
+            <ScrollArea className="h-[156px]">
+              <div className="space-y-2">
+                {history.slice(0, 6).map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-[22px] bg-[#f8fafc] p-4"
+                    className="flex items-center justify-between rounded-[14px] bg-[#fbfcff] px-3 py-2.5"
                   >
                     <div>
-                      <div className="text-sm font-medium">{format(new Date(item.date), "MMM d, yyyy")}</div>
-                      <div className="text-xs text-[#64748b]">{item.note}</div>
+                      <div className="text-[12px] font-medium text-[#4b5263]">
+                        {paymentMethod?.name ?? "Payment"}
+                      </div>
+                      <div className="text-[11px] text-[#a2a9b9]">
+                        {format(new Date(item.date), "MMM d")}
+                      </div>
                     </div>
-                    <div className="text-sm font-semibold">
+                    <div className="text-[12px] font-semibold text-[#596174]">
                       {formatCurrency(item.amountCents, item.currency)}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </ScrollArea>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          <div className="mt-5 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => deleteSubscription(subscription.id)}
+              className="text-[#d15f5f]"
+            >
+              <Trash2 className="size-3.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function DetailTile({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] bg-[#f8fafc] p-4">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-[#94a3b8]">
-        {icon}
-        {label}
-      </div>
-      <div className="mt-2 text-sm font-semibold text-[#111827]">{value}</div>
+    <div className="flex items-center justify-between gap-4 text-[12px]">
+      <div className="text-[#a0a7b7]">{label}</div>
+      <div className="text-right font-medium text-[#4b5263]">{value}</div>
     </div>
   );
 }
