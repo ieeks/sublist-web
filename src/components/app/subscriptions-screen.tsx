@@ -62,7 +62,7 @@ export function SubscriptionsScreen() {
   }
 
   const totalDue = filteredSubscriptions.reduce(
-    (total, subscription) => total + subscription.amountCents,
+    (sum, subscription) => sum + subscription.amountCents,
     0,
   );
 
@@ -72,15 +72,76 @@ export function SubscriptionsScreen() {
 
   return (
     <>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_230px]">
+      <div className="lg:hidden">
+        <div className="mx-auto max-w-sm rounded-[26px] bg-white px-4 pb-4 pt-3 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
+          <div className="flex items-center justify-between pb-3">
+            <div className="text-[22px] font-semibold tracking-[-0.05em] text-[#4a5162]">
+              Subscriptions
+            </div>
+            <button
+              type="button"
+              onClick={openCreateDialog}
+              className="flex size-8 items-center justify-center rounded-full border border-[#edf0f5] bg-[#fafbfe] text-[#99a2b3]"
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
+
+          <div className="rounded-[18px] bg-[#fbfcff] p-3">
+            <div className="text-[10px] text-[#aab1c0]">Total due</div>
+            <div className="mt-1 flex items-center justify-between">
+              <div className="text-[13px] font-semibold text-[#4b5263]">
+                {formatCurrency(totalDue, data.settings.defaultCurrency)}
+              </div>
+              <div className="text-[10px] text-[#aab1c0]">
+                {filteredSubscriptions.length} items
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-2.5">
+            {filteredSubscriptions.map((subscription) => (
+              <button
+                type="button"
+                key={subscription.id}
+                onClick={() => {
+                  setSelectedId(subscription.id);
+                  openEditDialog(subscription);
+                }}
+                className="block w-full text-left"
+              >
+                <div className="rounded-[18px] border border-[#eef0f5] bg-white px-3 py-3 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.12)]">
+                  <div className="flex items-center gap-3">
+                    <BrandAvatar
+                      logoKey={subscription.logoKey}
+                      name={subscription.name}
+                      className="size-11 rounded-[12px]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-[#4b5263]">
+                        {subscription.name}
+                      </div>
+                      <div className="text-[10px] text-[#9ca3af]">
+                        {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
+                      </div>
+                    </div>
+                    <div className="text-right text-[10px] text-[#99a2b3]">
+                      {formatDateLabel(subscription.nextDueDate)}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden gap-4 lg:grid xl:grid-cols-[minmax(0,1fr)_230px]">
         <div className="space-y-4">
           <Card>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[18px] font-semibold tracking-[-0.04em] text-[#4b5263] sm:hidden">
-                    Subscriptions
-                  </div>
                   <div className="text-[11px] text-[#a1a8b8]">Total due</div>
                   <div className="mt-1 text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">
                     {formatCurrency(totalDue, data.settings.defaultCurrency)}
@@ -97,13 +158,13 @@ export function SubscriptionsScreen() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search"
-                  className="h-10 rounded-[14px] pl-9 text-[13px]"
+                  className="pl-9"
                 />
               </label>
 
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 xl:grid-cols-2">
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="h-10 rounded-[14px] text-[12px]">
+                  <SelectTrigger>
                     <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -117,7 +178,7 @@ export function SubscriptionsScreen() {
                 </Select>
 
                 <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                  <SelectTrigger className="h-10 rounded-[14px] text-[12px]">
+                  <SelectTrigger>
                     <SelectValue placeholder="All methods" />
                   </SelectTrigger>
                   <SelectContent>
@@ -146,8 +207,8 @@ export function SubscriptionsScreen() {
                   <Card
                     className={
                       selected
-                        ? "border-[#dce7ff] shadow-[0_20px_44px_-30px_rgba(59,130,246,0.28)]"
-                        : ""
+                        ? "border-[#dce7ff] shadow-[0_18px_38px_-28px_rgba(59,130,246,0.2)]"
+                        : undefined
                     }
                   >
                     <CardContent className="p-3">
@@ -166,7 +227,7 @@ export function SubscriptionsScreen() {
                           </div>
                         </div>
                         <div className="text-right text-[10px] text-[#a3aabd]">
-                          <div>{formatDateLabel(subscription.nextDueDate)}</div>
+                          {formatDateLabel(subscription.nextDueDate)}
                         </div>
                       </div>
                     </CardContent>
@@ -177,7 +238,7 @@ export function SubscriptionsScreen() {
           </div>
         </div>
 
-        <div className="hidden xl:block xl:self-start">
+        <div className="self-start">
           <SubscriptionDetail
             subscriptionId={effectiveSelectedId}
             onEdit={() => {

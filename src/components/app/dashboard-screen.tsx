@@ -19,23 +19,20 @@ export function DashboardScreen() {
   const [selectedId, setSelectedId] = useState<string | undefined>(
     activeSubscriptions[1]?.id ?? activeSubscriptions[0]?.id,
   );
-  const effectiveSelectedId = activeSubscriptions.find((item) => item.id === selectedId)
-    ? selectedId
-    : activeSubscriptions[0]?.id;
 
-  const totalDue = activeSubscriptions.reduce(
-    (total, subscription) => total + subscription.amountCents,
-    0,
-  );
+  const selected = activeSubscriptions.find((item) => item.id === selectedId)
+    ? selectedId
+    : activeSubscriptions[1]?.id ?? activeSubscriptions[0]?.id;
+
+  const totalDue = activeSubscriptions.reduce((sum, item) => sum + item.amountCents, 0);
   const averagePerMonth = activeSubscriptions.reduce(
-    (total, subscription) =>
-      total + toMonthlyAmount(subscription.amountCents, subscription.billingCycle),
+    (sum, item) => sum + toMonthlyAmount(item.amountCents, item.billingCycle),
     0,
   );
   const upcomingRenewals = [...activeSubscriptions]
     .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate))
     .slice(0, 6);
-
+  const selectedSubscription = activeSubscriptions.find((item) => item.id === selected);
   const aiSpend = activeSubscriptions
     .filter((subscription) => subscription.categoryId === "ai")
     .reduce(
@@ -47,7 +44,6 @@ export function DashboardScreen() {
   const categoryBreakdown = data.categories
     .map((category) => ({
       name: category.name,
-      short: category.name.length > 13 ? `${category.name.slice(0, 13)}…` : category.name,
       value: activeSubscriptions
         .filter((subscription) => subscription.categoryId === category.id)
         .reduce(
@@ -64,7 +60,6 @@ export function DashboardScreen() {
   const paymentBreakdown = data.paymentMethods
     .map((method) => ({
       name: method.name,
-      short: method.name.length > 13 ? `${method.name.slice(0, 13)}…` : method.name,
       value: activeSubscriptions
         .filter((subscription) => subscription.paymentMethodId === method.id)
         .reduce(
@@ -91,9 +86,52 @@ export function DashboardScreen() {
   }
 
   return (
-    <div className="relative grid gap-4 xl:grid-cols-[minmax(0,1fr)_214px_230px]">
-      <div className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3">
+    <>
+    <div className="space-y-3 lg:hidden">
+      <Card>
+        <CardContent className="p-4">
+          <div className="text-[11px] text-[#acb3c1]">Dashboard</div>
+          <div className="mt-2 text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+            {formatCurrency(totalDue, data.settings.defaultCurrency)}
+          </div>
+          <div className="mt-1 text-[11px] text-[#9ca3af]">
+            {upcomingRenewals.length} active renewals tracked
+          </div>
+        </CardContent>
+      </Card>
+      <div className="space-y-2">
+        {upcomingRenewals.slice(0, 4).map((subscription) => (
+          <Card key={subscription.id}>
+            <CardContent className="flex items-center gap-3 p-3">
+              <BrandAvatar
+                logoKey={subscription.logoKey}
+                name={subscription.name}
+                className="size-10 rounded-[12px]"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-semibold text-[#4d5567]">{subscription.name}</div>
+                <div className="text-[10px] text-[#9ca3af]">
+                  {format(parseISO(subscription.nextDueDate), "MMM d")}
+                </div>
+              </div>
+              <div className="text-[12px] font-semibold text-[#5a6274]">
+                {formatCurrency(subscription.amountCents, subscription.currency)}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+
+    <div className="relative hidden lg:block">
+      <div className="pr-[250px] xl:pr-[270px]">
+        <div className="mb-3">
+          <h2 className="text-[15px] font-semibold tracking-[-0.04em] text-[#4b5263]">
+            Dashboard
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_210px] gap-4">
           <MetricCard label="Total due" value={formatCurrency(totalDue, data.settings.defaultCurrency)} />
           <MetricCard
             label="Average per month"
@@ -102,46 +140,83 @@ export function DashboardScreen() {
           <MetricCard
             label="Upcoming renewals"
             value={formatCurrency(
-              upcomingRenewals.reduce((total, subscription) => total + subscription.amountCents, 0),
+              upcomingRenewals.slice(0, 2).reduce((sum, item) => sum + item.amountCents, 0),
               data.settings.defaultCurrency,
             )}
           />
-        </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-          <Card>
+          <Card className="row-span-2">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[13px] text-[#6b7280]">Smart launches</CardTitle>
+              <CardTitle className="text-[12px] text-[#5e6678]">Smart insights</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent className="space-y-4">
+              <div className="rounded-[18px] bg-[#fcfcfe] p-3">
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[#fff1eb] text-[#ff9569]">
+                    <Sparkles className="size-3.5" />
+                  </div>
+                  <div className="text-[12px] font-semibold leading-5 text-[#51596b]">
+                    You spend {formatCurrency(aiSpend, data.settings.defaultCurrency)} monthly on AI tools.
+                  </div>
+                </div>
+              </div>
+
+              <InsightGroup
+                title="Category breakdown"
+                items={categoryBreakdown.map((item) => ({
+                  label: item.name,
+                  value: item.value,
+                  color: item.color,
+                  max: maxCategory,
+                }))}
+              />
+
+              <InsightGroup
+                title="Payment methods"
+                icon={<CreditCard className="size-3.5" />}
+                items={paymentBreakdown.map((item) => ({
+                  label: item.name,
+                  value: item.value,
+                  color: "#6f83df",
+                  max: maxPayment,
+                }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[12px] text-[#5e6678]">Smart launches</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-3">
               {upcomingRenewals.map((subscription) => (
                 <button
                   type="button"
                   key={subscription.id}
                   onClick={() => setSelectedId(subscription.id)}
-                  className="rounded-[14px] border border-[#eff2f6] bg-[#fbfcff] p-3 text-left transition hover:border-[#d8e7ff] hover:bg-white"
+                  className="rounded-[18px] border border-[#eff2f6] bg-[#fcfcfe] p-3 text-left transition hover:border-[#d8e7ff] hover:bg-white"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-2.5">
                     <BrandAvatar
                       logoKey={subscription.logoKey}
                       name={subscription.name}
-                      className="size-10 rounded-[12px]"
+                      className="size-9 rounded-[12px]"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-semibold text-[#4b5263]">
+                      <div className="truncate text-[11px] font-semibold text-[#4d5567]">
                         {subscription.name}
                       </div>
-                      <div className="text-[11px] text-[#9ca3af]">
+                      <div className="text-[10px] text-[#9ca3af]">
                         {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                       </div>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-[#9ca3af]">
+                  <div className="mt-5 flex items-center justify-between text-[10px] text-[#a3acbb]">
                     <span className="inline-flex items-center gap-1">
-                      <span className="size-1.5 rounded-full bg-[#ff9f6e]" />
+                      <span className="size-1.5 rounded-full bg-[#ff9b70]" />
                       {format(parseISO(subscription.nextDueDate), "MMM d")}
                     </span>
-                    <span className="capitalize">{subscription.status}</span>
+                    <span>Active</span>
                   </div>
                 </button>
               ))}
@@ -150,32 +225,32 @@ export function DashboardScreen() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-[13px] text-[#6b7280]">Upcoming this month</CardTitle>
+              <CardTitle className="text-[12px] text-[#5e6678]">Upcoming this month</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between px-1 text-[11px] text-[#a4abbb]">
+              <div className="flex items-center justify-between text-[10px] text-[#afb6c4]">
                 {["May", "Jun", "Jul", "Aug", "Sep", "Oct"].map((label) => (
                   <span key={label}>{label}</span>
                 ))}
               </div>
-              <div className="relative h-2 rounded-full bg-[#edf1f6]">
-                <div className="absolute left-[4%] top-0 h-2 w-[35%] rounded-full bg-[#b8d2ff]" />
+              <div className="relative h-2 rounded-full bg-[#eef1f6]">
+                <div className="absolute left-[4%] top-0 h-2 w-[36%] rounded-full bg-[#bdd5ff]" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {upcomingRenewals.slice(0, 3).map((subscription) => (
                   <div
                     key={subscription.id}
-                    className="flex items-center justify-between rounded-[14px] bg-[#fbfcff] px-3 py-2.5"
+                    className="flex items-center justify-between rounded-[16px] bg-[#fcfcfe] px-3 py-3"
                   >
                     <div>
-                      <div className="text-[12px] font-semibold text-[#4b5263]">
+                      <div className="text-[12px] font-semibold text-[#4d5567]">
                         {subscription.name}
                       </div>
-                      <div className="text-[11px] text-[#9ca3af]">
+                      <div className="text-[10px] text-[#9ca3af]">
                         {format(parseISO(subscription.nextDueDate), "MMM d")}
                       </div>
                     </div>
-                    <div className="text-[12px] font-semibold text-[#596174]">
+                    <div className="text-[12px] font-semibold text-[#5a6274]">
                       {formatCurrency(subscription.amountCents, subscription.currency)}
                     </div>
                   </div>
@@ -186,51 +261,20 @@ export function DashboardScreen() {
         </div>
       </div>
 
-      <Card className="self-start">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-[13px] text-[#6b7280]">Smart insights</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="rounded-[16px] bg-[#fbfcff] p-3">
-            <div className="flex items-start gap-2">
-              <div className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[#fff1eb] text-[#ff8d60]">
-                <Sparkles className="size-3.5" />
-              </div>
-              <div>
-                <div className="text-[13px] font-semibold leading-5 text-[#4b5263]">
-                  You spend {formatCurrency(aiSpend, data.settings.defaultCurrency)} monthly on AI tools.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <InsightGroup
-            title="Category breakdown"
-            items={categoryBreakdown.map((item) => ({
-              label: item.short,
-              value: item.value,
-              accent: item.color,
-              max: maxCategory,
-            }))}
+      <div className="pointer-events-none absolute right-0 top-10 w-[246px] xl:right-[-8px] xl:w-[258px]">
+        <div className="pointer-events-auto">
+          <SubscriptionDetail
+            subscriptionId={selected}
+            onEdit={() => undefined}
           />
-
-          <InsightGroup
-            title="Payment methods"
-            items={paymentBreakdown.map((item) => ({
-              label: item.short,
-              value: item.value,
-              accent: "#7b8ddf",
-              max: maxPayment,
-            }))}
-            icon={<CreditCard className="size-3.5" />}
-          />
-        </CardContent>
-      </Card>
-
-      <div className="xl:-ml-5 xl:pt-6">
-        <SubscriptionDetail subscriptionId={effectiveSelectedId} onEdit={() => undefined} />
+        </div>
       </div>
+
+      {!selectedSubscription ? null : (
+        <div className="lg:hidden">{selectedSubscription.name}</div>
+      )}
     </div>
+    </>
   );
 }
 
@@ -238,8 +282,8 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="text-[11px] text-[#a2a9b9]">{label}</div>
-        <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+        <div className="text-[11px] text-[#acb3c1]">{label}</div>
+        <div className="mt-3 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
           {value}
         </div>
       </CardContent>
@@ -253,7 +297,7 @@ function InsightGroup({
   icon,
 }: {
   title: string;
-  items: Array<{ label: string; value: number; accent: string; max: number }>;
+  items: Array<{ label: string; value: number; color: string; max: number }>;
   icon?: React.ReactNode;
 }) {
   return (
@@ -265,7 +309,7 @@ function InsightGroup({
       <div className="space-y-2.5">
         {items.map((item) => (
           <div key={item.label} className="space-y-1">
-            <div className="flex items-center justify-between text-[11px] text-[#7d8596]">
+            <div className="flex items-center justify-between text-[10px] text-[#7f8797]">
               <span>{item.label}</span>
               <span>{formatCurrency(item.value, "EUR")}</span>
             </div>
@@ -273,8 +317,8 @@ function InsightGroup({
               <div
                 className="h-1.5 rounded-full"
                 style={{
-                  width: `${Math.max((item.value / item.max) * 100, 14)}%`,
-                  backgroundColor: item.accent,
+                  width: `${Math.max((item.value / item.max) * 100, 16)}%`,
+                  backgroundColor: item.color,
                 }}
               />
             </div>
