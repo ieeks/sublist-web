@@ -22,7 +22,7 @@ export function SubscriptionDetail({
 
   if (!subscription) {
     return (
-      <Card className="min-h-[420px]">
+      <Card className="min-h-[420px] rounded-[28px]">
         <CardContent className="flex min-h-[420px] items-center justify-center p-6 text-center text-sm text-[#98a1b2]">
           Select a subscription to inspect details.
         </CardContent>
@@ -40,29 +40,31 @@ export function SubscriptionDetail({
   const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
 
   return (
-    <Card className="min-h-[420px] rounded-[22px] border-[#f0f2f6] shadow-[0_28px_70px_-38px_rgba(15,23,42,0.2)] xl:rounded-[24px]">
+    <Card className="min-h-[420px] rounded-[28px] border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,251,0.96))] shadow-[0_22px_56px_-34px_rgba(15,23,42,0.18)]">
       <CardContent className="p-0">
-        <div className="px-5 pb-4 pt-6">
+        <div className="px-5 pb-5 pt-6">
           <div className="flex justify-center">
-            <BrandAvatar
-              logoKey={subscription.logoKey}
-              name={subscription.name}
-              className="size-15 rounded-[16px]"
-            />
+            <div className="rounded-[22px] bg-[#fff5ef] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+              <BrandAvatar
+                logoKey={subscription.logoKey}
+                name={subscription.name}
+                className="size-16 rounded-[18px] border-none bg-transparent shadow-none"
+              />
+            </div>
           </div>
 
-          <div className="mt-4 text-center">
-            <h2 className="text-[17px] font-semibold tracking-[-0.04em] text-[#3f4656]">
+          <div className="mt-5 text-center">
+            <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-[#3f4656]">
               {subscription.name}
             </h2>
           </div>
 
-          <div className="mt-4 flex justify-center gap-4 border-y border-[#f0f2f6] py-3 text-[10px] text-[#7f8797]">
-            <button type="button" onClick={onEdit} className="inline-flex items-center gap-1">
+          <div className="mt-5 flex justify-center gap-6 border-y border-[#edf0f5] py-3 text-[11px] text-[#7f8797]">
+            <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5">
               <Pencil className="size-3.5" />
               Edit
             </button>
-            <button type="button" className="inline-flex items-center gap-1 text-[#a2a9b9]">
+            <button type="button" className="inline-flex items-center gap-1.5 text-[#8c96a8]">
               <Share2 className="size-3.5" />
               Share
             </button>
@@ -74,38 +76,59 @@ export function SubscriptionDetail({
                   subscription.status === "paused" ? "active" : "paused",
                 )
               }
-              className="inline-flex items-center gap-1"
+              className="inline-flex items-center gap-1.5"
             >
               <PauseCircle className="size-3.5" />
               {subscription.status === "paused" ? "Resume" : "Suspend"}
             </button>
           </div>
 
-          <div className="mt-4 space-y-2.5">
-            <DetailRow label="Amount" value={formatCurrency(subscription.amountCents, subscription.currency)} />
+          <div className="mt-4 space-y-0 text-[13px] text-[#7b8496]">
+            <DetailRow
+              label="Amount"
+              value={formatCurrency(subscription.amountCents, subscription.currency)}
+            />
             <DetailRow label="Category" value={category?.name ?? "Unknown"} />
             <DetailRow label="Payment method" value={paymentMethod?.name ?? "Unknown"} />
             <DetailRow label="Rewards" value={subscription.rewards || "None"} />
-            <DetailRow label="Start date" value={format(new Date(subscription.startDate), "MMM d, yyyy")} />
-            <DetailRow label="Next due" value={format(new Date(subscription.nextDueDate), "MMM d")} />
-            <DetailRow label="Total spent" value={formatCurrency(totalSpent, subscription.currency)} />
+            <DetailRow
+              label="Start date"
+              value={format(new Date(subscription.startDate), "MMM d, yyyy")}
+            />
+            <DetailRow
+              label="Next due"
+              value={format(new Date(subscription.nextDueDate), "MMM d")}
+            />
+            <DetailRow
+              label="Total spent"
+              value={formatCurrency(totalSpent, subscription.currency)}
+            />
           </div>
 
-          <div className="mt-5">
-            <div className="mb-3 text-[12px] font-semibold text-[#667085]">Payment History</div>
-            <ScrollArea className="h-[148px]">
-              <div className="space-y-2">
-                {history.slice(0, 6).map((item) => (
+          <div className="mt-5 border-t border-[#edf0f5] pt-4">
+            <div className="mb-3 text-[14px] font-semibold text-[#596276]">Payment History</div>
+            <ScrollArea className="h-[152px]">
+              <div className="space-y-2.5">
+                {history.slice(0, 6).map((item, index) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-[14px] bg-[#fbfcff] px-3 py-2.5"
+                    className="flex items-center justify-between rounded-[14px] bg-[#f4f4f7] px-3 py-2.5"
                   >
-                    <div>
-                      <div className="text-[12px] font-medium text-[#4b5263]">
-                        {paymentMethod?.name ?? "Payment"}
-                      </div>
-                      <div className="text-[11px] text-[#a2a9b9]">
-                        {format(new Date(item.date), "MMM d")}
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            [paymentMethod?.color ?? "#58a7ff", "#8b7df5", "#f28cac"][index % 3],
+                        }}
+                      />
+                      <div>
+                        <div className="text-[12px] font-medium text-[#4b5263]">
+                          {paymentMethod?.name ?? "Payment"}
+                        </div>
+                        <div className="text-[11px] text-[#9ba5b5]">
+                          {format(new Date(item.date), "MMM d")}
+                        </div>
                       </div>
                     </div>
                     <div className="text-[12px] font-semibold text-[#596174]">
@@ -136,9 +159,9 @@ export function SubscriptionDetail({
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[10px] px-0.5 text-[12px]">
-      <div className="text-[#a0a7b7]">{label}</div>
-      <div className="text-right font-medium text-[#4b5263]">{value}</div>
+    <div className="flex items-center justify-between border-t border-[#edf0f5] py-3 first:border-t-0">
+      <div className="text-[#97a2b4]">{label}</div>
+      <div className="text-right font-medium text-[#556073]">{value}</div>
     </div>
   );
 }

@@ -73,33 +73,30 @@ export function SubscriptionsScreen() {
   return (
     <>
       <div className="lg:hidden">
-        <div className="mx-auto max-w-sm rounded-[26px] bg-white px-4 pb-4 pt-3 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
-          <div className="flex items-center justify-between pb-3">
+        <div className="mx-auto max-w-sm px-4 pt-6">
+          <div className="flex items-center justify-between pb-5">
             <div className="text-[22px] font-semibold tracking-[-0.05em] text-[#4a5162]">
               Subscriptions
             </div>
             <button
               type="button"
               onClick={openCreateDialog}
-              className="flex size-8 items-center justify-center rounded-full border border-[#edf0f5] bg-[#fafbfe] text-[#99a2b3]"
+              className="flex size-12 items-center justify-center rounded-full border border-[#edf0f5] bg-white text-[#99a2b3] shadow-[0_10px_22px_-18px_rgba(15,23,42,0.16)]"
             >
-              <Plus className="size-4" />
+              <Plus className="size-5" />
             </button>
           </div>
 
-          <div className="rounded-[18px] bg-[#fbfcff] p-3">
-            <div className="text-[10px] text-[#aab1c0]">Total due</div>
-            <div className="mt-1 flex items-center justify-between">
-              <div className="text-[13px] font-semibold text-[#4b5263]">
+          <div className="rounded-[18px] bg-[#f3f4f7] px-4 py-3">
+            <div className="flex items-center justify-between text-[13px] text-[#9eabbf]">
+              <div>Total due</div>
+              <div className="font-medium text-[#8491a6]">
                 {formatCurrency(totalDue, data.settings.defaultCurrency)}
-              </div>
-              <div className="text-[10px] text-[#aab1c0]">
-                {filteredSubscriptions.length} items
               </div>
             </div>
           </div>
 
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-5 space-y-4">
             {filteredSubscriptions.map((subscription) => (
               <button
                 type="button"
@@ -110,22 +107,22 @@ export function SubscriptionsScreen() {
                 }}
                 className="block w-full text-left"
               >
-                <div className="rounded-[18px] border border-[#eef0f5] bg-white px-3 py-3 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.12)]">
+                <div className="rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]">
                   <div className="flex items-center gap-3">
                     <BrandAvatar
                       logoKey={subscription.logoKey}
                       name={subscription.name}
-                      className="size-11 rounded-[12px]"
+                      className="size-14 rounded-[16px]"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold text-[#4b5263]">
+                      <div className="text-[16px] font-semibold tracking-[-0.04em] text-[#4b5263]">
                         {subscription.name}
                       </div>
-                      <div className="text-[10px] text-[#9ca3af]">
+                      <div className="mt-1 text-[12px] text-[#8f9aac]">
                         {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                       </div>
                     </div>
-                    <div className="text-right text-[10px] text-[#99a2b3]">
+                    <div className="text-right text-[12px] font-medium text-[#8894a6]">
                       {formatDateLabel(subscription.nextDueDate)}
                     </div>
                   </div>
@@ -136,14 +133,14 @@ export function SubscriptionsScreen() {
         </div>
       </div>
 
-      <div className="hidden gap-4 lg:grid xl:grid-cols-[minmax(0,1fr)_230px]">
+      <div className="hidden gap-5 lg:grid xl:grid-cols-[minmax(0,1fr)_276px]">
         <div className="space-y-4">
-          <Card>
-            <CardContent className="space-y-3 p-4">
+          <Card className="rounded-[24px]">
+            <CardContent className="space-y-3 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] text-[#a1a8b8]">Total due</div>
-                  <div className="mt-1 text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">
+                  <div className="text-[12px] text-[#a1a8b8]">Total due</div>
+                  <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
                     {formatCurrency(totalDue, data.settings.defaultCurrency)}
                   </div>
                 </div>
@@ -194,7 +191,7 @@ export function SubscriptionsScreen() {
             </CardContent>
           </Card>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredSubscriptions.map((subscription) => {
               const selected = effectiveSelectedId === subscription.id;
               return (
@@ -207,26 +204,26 @@ export function SubscriptionsScreen() {
                   <Card
                     className={
                       selected
-                        ? "border-[#dce7ff] shadow-[0_18px_38px_-28px_rgba(59,130,246,0.2)]"
+                        ? "border-[#dce7ff] shadow-[0_18px_38px_-28px_rgba(59,130,246,0.18)]"
                         : undefined
                     }
                   >
-                    <CardContent className="p-3">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <BrandAvatar
                           logoKey={subscription.logoKey}
                           name={subscription.name}
-                          className="size-11 rounded-[12px]"
+                          className="size-12 rounded-[14px]"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[12px] font-semibold text-[#4b5263]">
+                          <div className="text-[14px] font-semibold text-[#4b5263]">
                             {subscription.name}
                           </div>
-                          <div className="text-[11px] text-[#9ca3af]">
+                          <div className="mt-0.5 text-[12px] text-[#9ca3af]">
                             {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                           </div>
                         </div>
-                        <div className="text-right text-[10px] text-[#a3aabd]">
+                        <div className="text-right text-[12px] text-[#a3aabd]">
                           {formatDateLabel(subscription.nextDueDate)}
                         </div>
                       </div>

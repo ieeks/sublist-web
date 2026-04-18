@@ -1,5 +1,13 @@
-import { MockupScene } from "@/components/app/mockup-scene";
+import { AppShell } from "@/components/app/app-shell";
+import { DashboardScreen } from "@/components/app/dashboard-screen";
 
 export default function Home() {
-  return <MockupScene />;
+  return (
+    <AppShell
+      title="Dashboard"
+      description="A premium overview of recurring subscriptions, renewals, and category spend."
+    >
+      <DashboardScreen />
+    </AppShell>
+  );
 }
