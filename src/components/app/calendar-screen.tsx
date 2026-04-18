@@ -73,7 +73,7 @@ export function CalendarScreen() {
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)]">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Monthly overview</CardTitle>
             <CardDescription>
@@ -81,23 +81,33 @@ export function CalendarScreen() {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="icon" onClick={() => setMonth((current) => addDays(startOfMonth(current), -1))}>
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="size-10 sm:size-9"
+              onClick={() => setMonth((current) => addDays(startOfMonth(current), -1))}
+            >
               <ChevronLeft className="size-4" />
             </Button>
-            <Badge className="bg-white">{format(month, "MMMM yyyy")}</Badge>
-            <Button variant="secondary" size="icon" onClick={() => setMonth((current) => addDays(endOfMonth(current), 1))}>
+            <Badge className="bg-white px-3 py-1 text-sm sm:text-xs">{format(month, "MMMM yyyy")}</Badge>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="size-10 sm:size-9"
+              onClick={() => setMonth((current) => addDays(endOfMonth(current), 1))}
+            >
               <ChevronRight className="size-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 grid grid-cols-7 gap-2 text-center text-xs uppercase tracking-[0.22em] text-[#94a3b8]">
+          <div className="mb-3 grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-[0.14em] text-[#94a3b8] sm:mb-4 sm:gap-2 sm:text-xs sm:tracking-[0.22em]">
             {weekdayLabels.map((label) => (
               <div key={label}>{label}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {calendarDays.map((day) => {
               const dayKey = format(day, "yyyy-MM-dd");
               const items = dueItems.filter((item) => item.date === dayKey);
@@ -105,7 +115,7 @@ export function CalendarScreen() {
                 <div
                   key={dayKey}
                   className={[
-                    "min-h-[118px] rounded-[24px] border p-3 transition",
+                    "min-h-[88px] rounded-[16px] border p-2 transition sm:min-h-[118px] sm:rounded-[24px] sm:p-3",
                     isSameMonth(day, month)
                       ? "border-white/80 bg-white/82"
                       : "border-white/50 bg-white/40 text-[#94a3b8]",
@@ -115,20 +125,23 @@ export function CalendarScreen() {
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">{format(day, "d")}</div>
                     {items.length > 0 ? (
-                      <Badge className="bg-[#eff6ff] text-[#2563eb]">{items.length}</Badge>
+                      <Badge className="bg-[#eff6ff] px-2 py-0.5 text-[10px] text-[#2563eb] sm:px-2.5 sm:py-1 sm:text-xs">
+                        {items.length}
+                      </Badge>
                     ) : null}
                   </div>
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-2 space-y-2 sm:mt-3">
                     {items.slice(0, 2).map((item) => (
                       <div
                         key={`${item.subscription.id}-${item.date}`}
-                        className="truncate rounded-full bg-[#f8fafc] px-3 py-1.5 text-xs font-medium text-[#475569]"
+                        className="hidden truncate rounded-full bg-[#f8fafc] px-3 py-1.5 text-xs font-medium text-[#475569] sm:block"
                       >
                         {item.subscription.name}
                       </div>
                     ))}
+                    {items.length > 0 ? <div className="text-[10px] text-[#94a3b8] sm:hidden">Due</div> : null}
                     {items.length > 2 ? (
-                      <div className="text-xs text-[#94a3b8]">+{items.length - 2} more</div>
+                      <div className="hidden text-xs text-[#94a3b8] sm:block">+{items.length - 2} more</div>
                     ) : null}
                   </div>
                 </div>
