@@ -16,12 +16,9 @@ export function DashboardScreen() {
     () => data.subscriptions.filter((item) => item.status !== "archived"),
     [data.subscriptions],
   );
-  const [selectedId, setSelectedId] = useState<string | undefined>("claude");
+  const [selectedId, setSelectedId] = useState<string | undefined>();
 
-  const selectedSubscription =
-    subscriptions.find((item) => item.id === selectedId) ??
-    subscriptions.find((item) => item.id === "claude") ??
-    subscriptions[0];
+  const selectedSubscription = subscriptions.find((item) => item.id === selectedId);
 
   const totalDue = subscriptions.reduce((sum, item) => sum + item.amountCents, 0);
   const averagePerMonth = subscriptions.reduce(
@@ -127,8 +124,9 @@ export function DashboardScreen() {
         </div>
       </div>
 
-      <div className="relative hidden lg:block">
-        <div className="pr-[288px]">
+      <div className="hidden lg:block">
+        <div className="grid grid-cols-[minmax(0,1fr)_252px] gap-5 xl:grid-cols-[minmax(0,1fr)_264px]">
+          <div>
           <div className="grid grid-cols-3 gap-4">
             <MetricCard
               label="Total due"
@@ -147,15 +145,18 @@ export function DashboardScreen() {
             />
           </div>
 
-          <div className="mt-5 grid grid-cols-[minmax(0,1fr)_260px] gap-5">
-            <div>
+          <div className="mt-5">
               <div className="mb-3 text-[13px] font-semibold text-[#586072]">Smart launches</div>
               <div className="grid grid-cols-2 gap-4">
                 {launches.map((subscription) => (
                   <button
                     type="button"
                     key={subscription.id}
-                    onClick={() => setSelectedId(subscription.id)}
+                    onClick={() =>
+                      setSelectedId((current) =>
+                        current === subscription.id ? undefined : subscription.id,
+                      )
+                    }
                     className="rounded-[22px] border border-[#edf0f5] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfe_100%)] px-4 py-4 text-left shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)] transition hover:border-[#dce7ff]"
                   >
                     <div className="flex items-start gap-3">
@@ -180,47 +181,6 @@ export function DashboardScreen() {
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="space-y-4">
-              <Card className="rounded-[24px]">
-                <CardContent className="p-4">
-                  <div className="mb-3 text-[13px] font-semibold text-[#596276]">
-                    Smart insights
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-[#fff2eb] text-[#f59a68]">
-                      <Sparkles className="size-4" />
-                    </div>
-                    <div className="text-[13px] leading-6 text-[#6b7383]">
-                      <span className="font-semibold text-[#465062]">
-                        You spend {formatCurrency(aiSpend, data.settings.defaultCurrency)}
-                      </span>
-                      <br />
-                      monthly on AI tools.
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <BreakdownCard
-                title="Category breakdown"
-                items={categoryBreakdown.map((item) => ({
-                  ...item,
-                  width: `${Math.max(20, Math.round((item.value / maxCategory) * 100))}%`,
-                }))}
-                currency={data.settings.defaultCurrency}
-              />
-
-              <BreakdownCard
-                title="Payment methods"
-                items={paymentBreakdown.map((item) => ({
-                  ...item,
-                  width: `${Math.max(20, Math.round((item.value / maxPayment) * 100))}%`,
-                }))}
-                currency={data.settings.defaultCurrency}
-              />
-            </div>
           </div>
 
           <div className="mt-5 max-w-[540px]">
@@ -255,13 +215,56 @@ export function DashboardScreen() {
               </CardContent>
             </Card>
           </div>
-        </div>
+          </div>
 
-        <div className="absolute right-0 top-0 w-[276px] xl:right-[-10px]">
-          <SubscriptionDetail
-            subscriptionId={selectedSubscription?.id}
-            onEdit={() => undefined}
-          />
+          <div className="space-y-4">
+            {selectedSubscription ? (
+              <SubscriptionDetail
+                subscriptionId={selectedSubscription.id}
+                onEdit={() => undefined}
+              />
+            ) : (
+              <>
+                <Card className="rounded-[24px]">
+                  <CardContent className="p-4">
+                    <div className="mb-3 text-[13px] font-semibold text-[#596276]">
+                      Smart insights
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-[#fff2eb] text-[#f59a68]">
+                        <Sparkles className="size-4" />
+                      </div>
+                      <div className="text-[13px] leading-6 text-[#6b7383]">
+                        <span className="font-semibold text-[#465062]">
+                          You spend {formatCurrency(aiSpend, data.settings.defaultCurrency)}
+                        </span>
+                        <br />
+                        monthly on AI tools.
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <BreakdownCard
+                  title="Category breakdown"
+                  items={categoryBreakdown.map((item) => ({
+                    ...item,
+                    width: `${Math.max(20, Math.round((item.value / maxCategory) * 100))}%`,
+                  }))}
+                  currency={data.settings.defaultCurrency}
+                />
+
+                <BreakdownCard
+                  title="Payment methods"
+                  items={paymentBreakdown.map((item) => ({
+                    ...item,
+                    width: `${Math.max(20, Math.round((item.value / maxPayment) * 100))}%`,
+                  }))}
+                  currency={data.settings.defaultCurrency}
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -273,7 +276,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
     <Card className="rounded-[22px]">
       <CardContent className="px-6 py-6">
         <div className="text-[12px] text-[#9aa5b8]">{label}</div>
-        <div className="mt-4 text-[20px] font-semibold tracking-[-0.05em] text-[#455063]">
+        <div className="mt-5 text-[21px] font-semibold tracking-[-0.05em] text-[#455063]">
           {value}
         </div>
       </CardContent>

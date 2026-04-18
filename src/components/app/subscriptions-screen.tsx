@@ -73,8 +73,8 @@ export function SubscriptionsScreen() {
   return (
     <>
       <div className="lg:hidden">
-        <div className="mx-auto max-w-sm px-4 pt-6">
-          <div className="flex items-center justify-between pb-5">
+        <div className="mx-auto max-w-sm px-4 pt-7">
+          <div className="flex items-center justify-between pb-6">
             <div className="text-[22px] font-semibold tracking-[-0.05em] text-[#4a5162]">
               Subscriptions
             </div>
@@ -87,7 +87,7 @@ export function SubscriptionsScreen() {
             </button>
           </div>
 
-          <div className="rounded-[18px] bg-[#f3f4f7] px-4 py-3">
+          <div className="rounded-[18px] bg-[#f3f4f7] px-4 py-3.5">
             <div className="flex items-center justify-between text-[13px] text-[#9eabbf]">
               <div>Total due</div>
               <div className="font-medium text-[#8491a6]">
@@ -96,7 +96,7 @@ export function SubscriptionsScreen() {
             </div>
           </div>
 
-          <div className="mt-5 space-y-4">
+          <div className="mt-6 space-y-5">
             {filteredSubscriptions.map((subscription) => (
               <button
                 type="button"
@@ -108,7 +108,7 @@ export function SubscriptionsScreen() {
                 className="block w-full text-left"
               >
                 <div className="rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <BrandAvatar
                       logoKey={subscription.logoKey}
                       name={subscription.name}
@@ -122,7 +122,7 @@ export function SubscriptionsScreen() {
                         {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                       </div>
                     </div>
-                    <div className="text-right text-[12px] font-medium text-[#8894a6]">
+                    <div className="min-w-[46px] text-right text-[12px] font-medium text-[#8894a6]">
                       {formatDateLabel(subscription.nextDueDate)}
                     </div>
                   </div>

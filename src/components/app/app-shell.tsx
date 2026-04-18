@@ -44,7 +44,7 @@ export function AppShell({
       <div className="relative min-h-screen bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.98),rgba(244,244,247,0.96)_48%,#eceff4_100%)]">
         <div className="absolute inset-x-0 bottom-0 h-48 bg-[radial-gradient(circle_at_50%_100%,rgba(202,211,223,0.38),rgba(245,244,247,0)_68%)]" />
         <div className="mx-auto flex min-h-screen max-w-[1260px] flex-col px-3 py-4 sm:px-5 sm:py-6">
-          <div className="relative flex min-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-[34px] border border-[#e8ebf0] bg-[linear-gradient(180deg,rgba(251,251,253,0.96)_0%,rgba(245,247,251,0.98)_100%)] shadow-[0_38px_100px_-72px_rgba(15,23,42,0.26)] lg:grid lg:grid-cols-[196px_minmax(0,1fr)]">
+          <div className="relative flex min-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-[34px] border border-[#e8ebf0] bg-[linear-gradient(180deg,rgba(251,251,253,0.96)_0%,rgba(245,247,251,0.98)_100%)] shadow-[0_38px_100px_-72px_rgba(15,23,42,0.26)] lg:grid lg:grid-cols-[198px_minmax(0,1fr)]">
             <aside className="hidden border-r border-[#eceef3] bg-[linear-gradient(180deg,#efeff3_0%,#f3f4f8_100%)] px-4 pb-5 pt-5 lg:flex lg:flex-col">
               <div className="mb-7 flex items-center gap-2 pl-1">
                 <div className="h-3 w-3 rounded-full bg-[#e68b7c]" />
@@ -82,7 +82,12 @@ export function AppShell({
                   {sidebarSubscriptions.map((subscription) => (
                     <div
                       key={subscription.id}
-                      className="flex items-center gap-3 rounded-[12px] px-2 py-2.5 text-[11px] text-[#687183]"
+                      className={cn(
+                        "flex items-center gap-3 rounded-[12px] px-2 py-2.5 text-[11px]",
+                        pathname === "/" && subscription.id === "claude"
+                          ? "bg-white text-[#4a5467] shadow-[0_10px_20px_-18px_rgba(15,23,42,0.18)]"
+                          : "text-[#687183]",
+                      )}
                     >
                       <span
                         className="size-2.5 rounded-full"
@@ -114,7 +119,7 @@ export function AppShell({
             </aside>
 
             <div className="min-w-0">
-              <header className="sticky top-0 z-30 hidden border-b border-[#eceef3] bg-white/78 px-4 py-4 backdrop-blur-xl sm:px-5 lg:block lg:px-7">
+              <header className="sticky top-0 z-30 hidden border-b border-[#eceef3] bg-white/76 px-4 py-4 backdrop-blur-xl sm:px-5 lg:block lg:px-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h1 className="text-[17px] font-semibold tracking-[-0.05em] text-[#3f4656] lg:text-[18px]">

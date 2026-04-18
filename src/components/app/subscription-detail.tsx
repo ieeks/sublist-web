@@ -42,7 +42,7 @@ export function SubscriptionDetail({
   return (
     <Card className="min-h-[420px] rounded-[28px] border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,251,0.96))] shadow-[0_22px_56px_-34px_rgba(15,23,42,0.18)]">
       <CardContent className="p-0">
-        <div className="px-5 pb-5 pt-6">
+        <div className="px-6 pb-5 pt-6">
           <div className="flex justify-center">
             <div className="rounded-[22px] bg-[#fff5ef] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
               <BrandAvatar
@@ -59,7 +59,7 @@ export function SubscriptionDetail({
             </h2>
           </div>
 
-          <div className="mt-5 flex justify-center gap-6 border-y border-[#edf0f5] py-3 text-[11px] text-[#7f8797]">
+          <div className="mt-5 flex justify-center gap-6 border-y border-[#edf0f5] py-3.5 text-[11px] text-[#7f8797]">
             <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5">
               <Pencil className="size-3.5" />
               Edit
@@ -107,12 +107,12 @@ export function SubscriptionDetail({
 
           <div className="mt-5 border-t border-[#edf0f5] pt-4">
             <div className="mb-3 text-[14px] font-semibold text-[#596276]">Payment History</div>
-            <ScrollArea className="h-[152px]">
+            <ScrollArea className="h-[166px]">
               <div className="space-y-2.5">
                 {history.slice(0, 6).map((item, index) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-[14px] bg-[#f4f4f7] px-3 py-2.5"
+                    className="flex items-center justify-between rounded-[14px] bg-[#f4f4f7] px-3.5 py-3"
                   >
                     <div className="flex items-center gap-2.5">
                       <span
