@@ -38,6 +38,17 @@ export function AppShell({
     .filter((item) => item.status !== "archived")
     .slice(0, 8);
   const desktopNavigation = navigation.filter((item) => item.href !== "/settings");
+  function subscriptionHref(subscriptionId: string) {
+    if (pathname === "/") {
+      return `/?subscription=${subscriptionId}`;
+    }
+
+    if (pathname === "/subscriptions") {
+      return `/subscriptions?subscription=${subscriptionId}`;
+    }
+
+    return `/subscriptions?subscription=${subscriptionId}`;
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f4f7] text-[#111827]">
@@ -80,13 +91,12 @@ export function AppShell({
                 <div className="text-[11px] font-medium text-[#b0b6c4]">Subscriptions</div>
                 <div className="mt-2 space-y-1">
                   {sidebarSubscriptions.map((subscription) => (
-                    <div
+                    <Link
                       key={subscription.id}
+                      href={subscriptionHref(subscription.id)}
                       className={cn(
                         "flex items-center gap-3 rounded-[12px] px-2 py-2.5 text-[11px]",
-                        pathname === "/" && subscription.id === "claude"
-                          ? "bg-white text-[#4a5467] shadow-[0_10px_20px_-18px_rgba(15,23,42,0.18)]"
-                          : "text-[#687183]",
+                        "text-[#687183] hover:bg-white/80 hover:text-[#4a5467]",
                       )}
                     >
                       <span
@@ -97,7 +107,7 @@ export function AppShell({
                         }}
                       />
                       <span className="truncate">{subscription.name}</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

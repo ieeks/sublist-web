@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
@@ -22,6 +23,7 @@ import type { Subscription } from "@/lib/types";
 
 export function SubscriptionsScreen() {
   const { data, ready } = useAppData();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -29,6 +31,7 @@ export function SubscriptionsScreen() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | undefined>();
   const deferredQuery = useDeferredValue(query);
+  const selectedFromQuery = searchParams.get("subscription") ?? undefined;
 
   const filteredSubscriptions = useMemo(
     () =>
@@ -47,9 +50,11 @@ export function SubscriptionsScreen() {
     [categoryFilter, data.subscriptions, deferredQuery, paymentFilter],
   );
 
-  const effectiveSelectedId = filteredSubscriptions.find((item) => item.id === selectedId)
-    ? selectedId
-    : filteredSubscriptions[0]?.id;
+  const effectiveSelectedId = filteredSubscriptions.find((item) => item.id === selectedFromQuery)
+    ? selectedFromQuery
+    : filteredSubscriptions.find((item) => item.id === selectedId)
+      ? selectedId
+      : filteredSubscriptions[0]?.id;
 
   function openCreateDialog() {
     setEditingSubscription(undefined);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
@@ -12,13 +13,26 @@ import { formatCurrency, toMonthlyAmount } from "@/lib/utils";
 
 export function DashboardScreen() {
   const { data, ready } = useAppData();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const subscriptions = useMemo(
     () => data.subscriptions.filter((item) => item.status !== "archived"),
     [data.subscriptions],
   );
-  const [selectedId, setSelectedId] = useState<string | undefined>();
+  const selectedId = searchParams.get("subscription") ?? undefined;
 
   const selectedSubscription = subscriptions.find((item) => item.id === selectedId);
+
+  function selectSubscription(subscriptionId: string) {
+    const nextParams = new URLSearchParams();
+    nextParams.set("subscription", subscriptionId);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }
+
+  function clearSelection() {
+    router.replace(pathname, { scroll: false });
+  }
 
   const totalDue = subscriptions.reduce((sum, item) => sum + item.amountCents, 0);
   const averagePerMonth = subscriptions.reduce(
@@ -96,7 +110,7 @@ export function DashboardScreen() {
             <button
               type="button"
               key={subscription.id}
-              onClick={() => setSelectedId(subscription.id)}
+              onClick={() => selectSubscription(subscription.id)}
               className="block w-full text-left"
             >
               <Card>
@@ -153,9 +167,9 @@ export function DashboardScreen() {
                     type="button"
                     key={subscription.id}
                     onClick={() =>
-                      setSelectedId((current) =>
-                        current === subscription.id ? undefined : subscription.id,
-                      )
+                      selectedId === subscription.id
+                        ? clearSelection()
+                        : selectSubscription(subscription.id)
                     }
                     className="rounded-[22px] border border-[#edf0f5] bg-[linear-gradient(180deg,#ffffff_0%,#fbfbfe_100%)] px-4 py-4 text-left shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)] transition hover:border-[#dce7ff]"
                   >
@@ -202,7 +216,7 @@ export function DashboardScreen() {
                     <button
                       type="button"
                       key={subscription.id}
-                      onClick={() => setSelectedId(subscription.id)}
+                      onClick={() => selectSubscription(subscription.id)}
                       className="text-left"
                     >
                       <div className="font-semibold text-[#4d5567]">{subscription.name}</div>
@@ -222,6 +236,7 @@ export function DashboardScreen() {
               <SubscriptionDetail
                 subscriptionId={selectedSubscription.id}
                 onEdit={() => undefined}
+                onClose={clearSelection}
               />
             ) : (
               <>

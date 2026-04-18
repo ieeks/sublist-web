@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Pencil, PauseCircle, Share2, Trash2 } from "lucide-react";
+import { Pencil, PauseCircle, Share2, Trash2, X } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
@@ -13,9 +13,11 @@ import { formatCurrency, summarizeTotalSpent } from "@/lib/utils";
 export function SubscriptionDetail({
   subscriptionId,
   onEdit,
+  onClose,
 }: {
   subscriptionId?: string;
   onEdit: () => void;
+  onClose?: () => void;
 }) {
   const { data, deleteSubscription, updateSubscriptionStatus } = useAppData();
   const subscription = data.subscriptions.find((item) => item.id === subscriptionId);
@@ -43,6 +45,19 @@ export function SubscriptionDetail({
     <Card className="min-h-[420px] rounded-[28px] border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,251,0.96))] shadow-[0_22px_56px_-34px_rgba(15,23,42,0.18)]">
       <CardContent className="p-0">
         <div className="px-6 pb-5 pt-6">
+          {onClose ? (
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex size-8 items-center justify-center rounded-full border border-[#eceff4] bg-white text-[#9aa5b8] shadow-[0_8px_18px_-14px_rgba(15,23,42,0.16)] transition hover:text-[#556073]"
+                aria-label="Close details"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : null}
+
           <div className="flex justify-center">
             <div className="rounded-[22px] bg-[#fff5ef] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
               <BrandAvatar
