@@ -17,3 +17,8 @@
 
 - confirm latest GitHub Pages workflow finished successfully
 - verify the live Pages build after each visual pass because `basePath` is production-only
+
+## Dokumentation
+
+- `CLAUDE_HANDOVER.md` bei jeder größeren Änderung aktualisieren
+- sicherstellen, dass README-Abschnitt „Übergabe an Claude Code“ aktuell bleibt
