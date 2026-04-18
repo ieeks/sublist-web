@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSelectedLayoutSegment } from "next/navigation";
 import {
   CalendarDays,
   CreditCard,
@@ -14,10 +14,10 @@ import { useAppData } from "@/components/providers/app-providers";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { href: "/", label: "Dashboard", icon: LayoutGrid },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
-  { href: "/settings", label: "Settings", icon: Settings2 },
+  { href: "/", label: "Dashboard", icon: LayoutGrid, segment: null },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays, segment: "calendar" },
+  { href: "/subscriptions", label: "Subscriptions", icon: CreditCard, segment: "subscriptions" },
+  { href: "/settings", label: "Settings", icon: Settings2, segment: "settings" },
 ];
 
 export function AppShell({
@@ -32,6 +32,7 @@ export function AppShell({
   actions?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const segment = useSelectedLayoutSegment();
   const { data } = useAppData();
   const categories = new Map(data.categories.map((item) => [item.id, item]));
   const sidebarSubscriptions = data.subscriptions
@@ -67,7 +68,7 @@ export function AppShell({
                 <nav className="space-y-1">
                   {desktopNavigation.map((item) => {
                     const Icon = item.icon;
-                    const active = pathname === item.href;
+                    const active = segment === item.segment;
                     return (
                       <Link
                         key={item.href}
@@ -117,7 +118,7 @@ export function AppShell({
                   href="/settings"
                   className={cn(
                     "flex items-center gap-2.5 rounded-[10px] px-2 py-2 text-[11px] font-medium transition",
-                    pathname === "/settings"
+                    segment === "settings"
                       ? "bg-white/90 text-[#4f77b8]"
                       : "text-[#7c8494] hover:bg-white hover:text-[#111827]",
                   )}
@@ -158,7 +159,7 @@ export function AppShell({
         <div className="mx-auto flex max-w-[360px] items-center justify-between rounded-[22px] border border-[#edf0f5] bg-white/96 px-1.5 py-1.5 shadow-[0_18px_46px_-30px_rgba(15,23,42,0.18)] backdrop-blur-xl">
           {navigation.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href;
+            const active = segment === item.segment;
             return (
               <Link
                 key={item.href}
