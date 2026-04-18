@@ -76,3 +76,8 @@ That serves the generated `out/` folder at `http://localhost:3000`.
 - All app data persists in localStorage.
 - The UI includes a desktop sidebar, mobile tab bar, dashboard charts, subscription detail panel, calendar view, and settings workspace.
 - The `/` route uses a visual reconstruction scene while still exposing real navigation and selection state.
+
+## Übergabe an Claude Code
+
+- Für die Weiterarbeit mit Claude Code siehe `CLAUDE_HANDOVER.md`.
+- Das Dokument enthält Architektur, Arbeitsablauf, Prioritäten und DoD für kommende Änderungen.
