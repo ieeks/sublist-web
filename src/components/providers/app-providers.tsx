@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { createSeedData } from "@/data/seed";
+import { FALLBACK_RATES, fetchFxRates } from "@/lib/currencies";
 import { calculateNextDueDate } from "@/lib/utils";
 import type {
   AppData,
@@ -27,6 +28,7 @@ const STORAGE_KEY = "sublist-web-state";
 type AppContextValue = {
   data: AppData;
   ready: boolean;
+  fxRates: Record<string, number>;
   addOrUpdateSubscription: (draft: SubscriptionDraft) => void;
   deleteSubscription: (subscriptionId: string) => void;
   updateSubscriptionStatus: (
@@ -36,6 +38,7 @@ type AppContextValue = {
   updateSettings: (settings: Partial<SettingsState>) => void;
   addCategory: (category: Omit<Category, "id">) => void;
   removeCategory: (categoryId: string) => void;
+  updateCategory: (categoryId: string, updates: Partial<Omit<Category, "id">>) => void;
   addPaymentMethod: (method: Omit<PaymentMethod, "id">) => void;
   removePaymentMethod: (paymentMethodId: string) => void;
   importSubscriptions: (rows: SubscriptionDraft[]) => void;
@@ -98,6 +101,12 @@ function ThemeSync({ children }: { children: React.ReactNode }) {
 }
 
 function AppStateProvider({ children }: { children: React.ReactNode }) {
+  const [fxRates, setFxRates] = useState<Record<string, number>>(FALLBACK_RATES);
+
+  useEffect(() => {
+    fetchFxRates().then(setFxRates).catch(() => {});
+  }, []);
+
   const [data, setData] = useState<AppData>(() => {
     if (typeof window === "undefined") {
       return createSeedData();
@@ -125,6 +134,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     () => ({
       data,
       ready,
+      fxRates,
       addOrUpdateSubscription: (draft) => {
         const subscription = draftToSubscription(draft);
         setData((current) => {
@@ -186,6 +196,14 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           categories: current.categories.filter((item) => item.id !== categoryId),
         }));
       },
+      updateCategory: (categoryId, updates) => {
+        setData((current) => ({
+          ...current,
+          categories: current.categories.map((cat) =>
+            cat.id === categoryId ? { ...cat, ...updates } : cat,
+          ),
+        }));
+      },
       addPaymentMethod: (method) => {
         setData((current) => ({
           ...current,
@@ -243,7 +261,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       },
       replaceAllData: (nextData) => setData(normalizeData(nextData)),
     }),
-    [data, ready],
+    [data, ready, fxRates],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

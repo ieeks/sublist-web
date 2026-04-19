@@ -10,10 +10,11 @@ import { BrandAvatar } from "@/components/app/brand-avatar";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { useAppData } from "@/components/providers/app-providers";
 import { Card, CardContent } from "@/components/ui/card";
+import { convertCurrency } from "@/lib/currencies";
 import { formatCurrency, toMonthlyAmount } from "@/lib/utils";
 
 export function DashboardScreen() {
-  const { data, ready } = useAppData();
+  const { data, ready, fxRates } = useAppData();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -35,9 +36,14 @@ export function DashboardScreen() {
     router.replace(pathname, { scroll: false });
   }
 
-  const totalDue = subscriptions.reduce((sum, item) => sum + item.amountCents, 0);
+  const defaultCurrency = data.settings.defaultCurrency;
+  const totalDue = subscriptions.reduce(
+    (sum, item) => sum + convertCurrency(item.amountCents, item.currency, defaultCurrency, fxRates),
+    0,
+  );
   const averagePerMonth = subscriptions.reduce(
-    (sum, item) => sum + toMonthlyAmount(item.amountCents, item.billingCycle),
+    (sum, item) =>
+      sum + convertCurrency(toMonthlyAmount(item.amountCents, item.billingCycle), item.currency, defaultCurrency, fxRates),
     0,
   );
   const launches = [...subscriptions]
@@ -53,7 +59,7 @@ export function DashboardScreen() {
         .filter((subscription) => subscription.categoryId === category.id)
         .reduce(
           (sum, subscription) =>
-            sum + toMonthlyAmount(subscription.amountCents, subscription.billingCycle),
+            sum + convertCurrency(toMonthlyAmount(subscription.amountCents, subscription.billingCycle), subscription.currency, defaultCurrency, fxRates),
           0,
         ),
     }))
@@ -69,7 +75,7 @@ export function DashboardScreen() {
         .filter((subscription) => subscription.paymentMethodId === method.id)
         .reduce(
           (sum, subscription) =>
-            sum + toMonthlyAmount(subscription.amountCents, subscription.billingCycle),
+            sum + convertCurrency(toMonthlyAmount(subscription.amountCents, subscription.billingCycle), subscription.currency, defaultCurrency, fxRates),
           0,
         ),
     }))
@@ -98,10 +104,10 @@ export function DashboardScreen() {
           <CardContent className="p-4">
             <div className="text-[11px] text-[#acb3c1]">Total due</div>
             <div className="mt-2 text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">
-              {formatCurrency(totalDue, data.settings.defaultCurrency)}
+              {formatCurrency(totalDue, defaultCurrency)}
             </div>
             <div className="mt-1 text-[11px] text-[#9ca3af]">
-              {formatCurrency(averagePerMonth, data.settings.defaultCurrency)} average monthly
+              {formatCurrency(averagePerMonth, defaultCurrency)} average monthly
             </div>
           </CardContent>
         </Card>
@@ -142,7 +148,7 @@ export function DashboardScreen() {
           <DonutCard
             title="By category"
             items={categoryBreakdown}
-            currency={data.settings.defaultCurrency}
+            currency={defaultCurrency}
           />
         )}
       </div>
@@ -153,17 +159,17 @@ export function DashboardScreen() {
           <div className="grid grid-cols-3 gap-4">
             <MetricCard
               label="Total due"
-              value={formatCurrency(totalDue, data.settings.defaultCurrency)}
+              value={formatCurrency(totalDue, defaultCurrency)}
             />
             <MetricCard
               label="Average per month"
-              value={formatCurrency(averagePerMonth, data.settings.defaultCurrency)}
+              value={formatCurrency(averagePerMonth, defaultCurrency)}
             />
             <MetricCard
               label="Upcoming renewals"
               value={formatCurrency(
-                upcoming.reduce((sum, item) => sum + item.amountCents, 0),
-                data.settings.defaultCurrency,
+                upcoming.reduce((sum, item) => sum + convertCurrency(item.amountCents, item.currency, defaultCurrency, fxRates), 0),
+                defaultCurrency,
               )}
             />
           </div>
@@ -260,7 +266,7 @@ export function DashboardScreen() {
                       </div>
                       <div className="text-[13px] leading-6 text-[#6b7383]">
                         <span className="font-semibold text-[#465062]">
-                          You spend {formatCurrency(aiSpend, data.settings.defaultCurrency)}
+                          You spend {formatCurrency(aiSpend, defaultCurrency)}
                         </span>
                         <br />
                         monthly on AI tools.
@@ -273,7 +279,7 @@ export function DashboardScreen() {
                   <DonutCard
                     title="By category"
                     items={categoryBreakdown}
-                    currency={data.settings.defaultCurrency}
+                    currency={defaultCurrency}
                   />
                 )}
 
@@ -283,7 +289,7 @@ export function DashboardScreen() {
                     ...item,
                     width: `${Math.max(20, Math.round((item.value / maxCategory) * 100))}%`,
                   }))}
-                  currency={data.settings.defaultCurrency}
+                  currency={defaultCurrency}
                 />
 
                 <BreakdownCard
@@ -292,7 +298,7 @@ export function DashboardScreen() {
                     ...item,
                     width: `${Math.max(20, Math.round((item.value / maxPayment) * 100))}%`,
                   }))}
-                  currency={data.settings.defaultCurrency}
+                  currency={defaultCurrency}
                 />
               </>
             )}
