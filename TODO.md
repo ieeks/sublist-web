@@ -12,6 +12,8 @@
 - improve CSV import validation and field mapping
 - add optional JSON backup and restore
 - add richer payment-history editing instead of demo-generated history only
+- show EUR conversion subtext on the dashboard subscription cards (mobile + smart-launches)
+- persist FX-rate currency selection per subscription through import/export round-trip
 
 ## Deployment Checks
 
@@ -21,4 +23,4 @@
 ## Dokumentation
 
 - `CLAUDE_HANDOVER.md` bei jeder größeren Änderung aktualisieren
-- sicherstellen, dass README-Abschnitt „Übergabe an Claude Code“ aktuell bleibt
+- sicherstellen, dass README-Abschnitt „Übergabe an Claude Code" aktuell bleibt

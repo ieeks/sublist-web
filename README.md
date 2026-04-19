@@ -4,9 +4,9 @@ Premium Apple-leaning subscription tracker built as the real app surface, not a 
 
 ## Current Focus
 
-- mockup-aligned desktop composition on the home route
-- interactive root scene instead of a dead static render
-- shared visual shell across dashboard, subscriptions, calendar, and settings
+- fully themed dark mode (class-based, FOUT-free)
+- responsive mobile navigation with swipe-to-delete on subscription cards
+- multi-currency support (EUR, USD, GBP, TRY, INR) with live FX conversion
 - local-first data flow with seeded demo subscriptions
 
 ## Stack
@@ -73,8 +73,11 @@ That serves the generated `out/` folder at `http://localhost:3000`.
 ## Quality Notes
 
 - Demo data seeds on first load only.
-- All app data persists in localStorage.
+- All app data persists in localStorage. FX rates are cached in localStorage with a 24 h TTL (source: frankfurter.app, hardcoded fallback if offline).
+- Dark mode is class-based via next-themes; a FOUT-prevention inline script in `<head>` applies the stored theme before first paint.
 - The UI includes a desktop sidebar, mobile tab bar, dashboard charts, subscription detail panel, calendar view, and settings workspace.
+- Mobile subscription list supports iOS-style swipe-to-delete with a confirmation dialog.
+- Category names are editable inline in Settings; categories and payment methods can be deleted when unused.
 - The `/` route uses a visual reconstruction scene while still exposing real navigation and selection state.
 
 ## Übergabe an Claude Code
