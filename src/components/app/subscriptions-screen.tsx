@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Plus, RotateCcw, Search } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
@@ -127,8 +127,14 @@ export function SubscriptionsScreen() {
                         {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                       </div>
                     </div>
-                    <div className="min-w-[46px] text-right text-[12px] font-medium text-[#8894a6]">
-                      {formatDateLabel(subscription.nextDueDate)}
+                    <div className="min-w-[46px] text-right">
+                      <div className="flex items-center justify-end gap-1 text-[10px] text-[#b0b6c4]">
+                        <RotateCcw className="size-2.5" />
+                        <span>Next</span>
+                      </div>
+                      <div className="mt-0.5 text-[12px] font-medium text-[#8894a6]">
+                        {formatDateLabel(subscription.nextDueDate)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -228,8 +234,14 @@ export function SubscriptionsScreen() {
                             {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
                           </div>
                         </div>
-                        <div className="text-right text-[12px] text-[#a3aabd]">
-                          {formatDateLabel(subscription.nextDueDate)}
+                        <div className="text-right">
+                          <div className="flex items-center justify-end gap-1 text-[10px] text-[#b0b6c4]">
+                            <RotateCcw className="size-2.5" />
+                            <span>Next</span>
+                          </div>
+                          <div className="mt-0.5 text-[12px] text-[#a3aabd]">
+                            {formatDateLabel(subscription.nextDueDate)}
+                          </div>
                         </div>
                       </div>
                     </CardContent>

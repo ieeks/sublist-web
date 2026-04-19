@@ -12,7 +12,7 @@ const buttonVariants = cva(
         default:
           "bg-[#111827] px-4 py-2.5 text-white shadow-[0_14px_32px_-22px_rgba(17,24,39,0.52)] hover:bg-[#1f2937]",
         secondary:
-          "bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,254,0.96))] px-4 py-2.5 text-[#111827] ring-1 ring-[#e9edf3] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] hover:bg-[#fafbff]",
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,254,0.96))] px-4 py-2.5 text-[#111827] ring-1 ring-[#e9edf3] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] hover:bg-[#fafbff] dark:bg-[rgba(30,41,59,0.7)] dark:text-[#e2e8f0] dark:ring-[rgba(148,163,184,0.2)] dark:hover:bg-[rgba(30,41,59,0.9)]",
         ghost: "px-3 py-2 text-[#7e8597] hover:bg-[#f5f7fb] hover:text-[#111827]",
         destructive:
           "bg-[#ef4444] px-4 py-2.5 text-white shadow-[0_16px_40px_-24px_rgba(239,68,68,0.8)] hover:bg-[#dc2626]",

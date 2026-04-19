@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #f3f4f7;
@@ -55,11 +56,55 @@ select {
 
 .dark .bg-white,
 .dark .bg-white\/70,
+.dark .bg-white\/76,
 .dark .bg-white\/80,
 .dark .bg-white\/82,
 .dark .bg-white\/85,
-.dark .bg-white\/88 {
+.dark .bg-white\/88,
+.dark .bg-white\/90,
+.dark .bg-white\/96 {
   background-color: rgba(15, 23, 42, 0.82) !important;
+}
+
+.dark .bg-\[\#f3f5f9\] {
+  background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+.dark .bg-\[linear-gradient\(180deg\,rgba\(255\,255\,255\,0\.98\)\,rgba\(249\,250\,253\,0\.96\)\)\],
+.dark .bg-\[linear-gradient\(180deg\,rgba\(251\,251\,253\,0\.96\)_0\%\,rgba\(245\,247\,251\,0\.98\)_100\%\)\] {
+  background: rgba(15, 23, 42, 0.72) !important;
+}
+
+.dark .bg-\[linear-gradient\(180deg\,\#efeff3_0\%\,\#f3f4f8_100\%\)\] {
+  background: rgba(15, 23, 42, 0.5) !important;
+}
+
+.dark .bg-\[linear-gradient\(180deg\,rgba\(255\,255\,255\,0\.98\)\,rgba\(248\,250\,254\,0\.96\)\)\] {
+  background: rgba(30, 41, 59, 0.7) !important;
+}
+
+.dark .bg-\[radial-gradient\(circle_at_50\%_0\%\,rgba\(255\,255\,255\,0\.98\)\,rgba\(244\,244\,247\,0\.96\)_48\%\,\#eceff4_100\%\)\] {
+  background: transparent !important;
+}
+
+.dark .text-\[\#111827\].dark\:text-\[inherit\] {
+  color: inherit !important;
+}
+
+.dark .bg-\[linear-gradient\(180deg\,\#ffffff_0\%\,\#fbfbfe_100\%\)\] {
+  background: rgba(30, 41, 59, 0.55) !important;
+}
+
+.dark .bg-\[linear-gradient\(135deg\,rgba\(239\,246\,255\,0\.9\)\,rgba\(248\,250\,252\,0\.95\)\)\] {
+  background: rgba(30, 41, 59, 0.5) !important;
+}
+
+.dark .ring-\[\#e9edf3\] {
+  --tw-ring-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.dark .border-\[\#eef0f5\] {
+  border-color: rgba(148, 163, 184, 0.18) !important;
 }
 
 .dark .text-\[\#111827\] {

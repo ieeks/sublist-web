@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, FolderUp, Plus, RefreshCcw } from "lucide-react";
+import { Download, FolderUp, Plus, RefreshCcw, Trash2 } from "lucide-react";
 
 import { useAppData } from "@/components/providers/app-providers";
 import { Button } from "@/components/ui/button";
@@ -97,24 +97,40 @@ export function SettingsScreen() {
           <CardDescription>Import or export recurring subscription records.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => triggerDownload("subscriptions.csv", subscriptionsToCsv(data.subscriptions))}>
-              <Download className="size-4" />
-              Export subscriptions CSV
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                triggerDownload("payment-history.csv", paymentHistoryToCsv(data.paymentHistory))
-              }
-            >
-              <Download className="size-4" />
-              Export payment history
-            </Button>
-            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-              <FolderUp className="size-4" />
-              Import subscriptions CSV
-            </Button>
+          <div>
+            <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-[#b0b6c4]">
+              Export
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => triggerDownload("subscriptions.csv", subscriptionsToCsv(data.subscriptions))}>
+                <Download className="size-4" />
+                Export subscriptions CSV
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  triggerDownload("payment-history.csv", paymentHistoryToCsv(data.paymentHistory))
+                }
+              >
+                <Download className="size-4" />
+                Export payment history
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.1em] text-[#b0b6c4]">
+              Import
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                <FolderUp className="size-4" />
+                Import subscriptions CSV
+              </Button>
+              <span className="text-xs text-[#9aa5b8]">Replaces current subscription list</span>
+            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -129,9 +145,10 @@ export function SettingsScreen() {
               }}
             />
           </div>
+
           <div className="rounded-[24px] bg-[#f8fafc] p-4 text-sm leading-6 text-[#64748b]">
-            CSV import replaces the current subscription list. Export keeps the current local
-            snapshot portable.
+            CSV export keeps the current local snapshot portable. Import replaces all subscriptions
+            with rows from the selected file.
           </div>
         </CardContent>
       </Card>
@@ -184,7 +201,9 @@ export function SettingsScreen() {
                     />
                     <div>
                       <div className="font-medium">{category.name}</div>
-                      <div className="text-xs text-[#64748b]">{usageCount} linked subscriptions</div>
+                      <div className="text-xs text-[#64748b]">
+                        {usageCount > 0 ? `${usageCount} linked subscription${usageCount !== 1 ? "s" : ""}` : "Unused"}
+                      </div>
                     </div>
                   </div>
                   <Button
@@ -192,8 +211,10 @@ export function SettingsScreen() {
                     size="sm"
                     disabled={usageCount > 0}
                     onClick={() => removeCategory(category.id)}
+                    title={usageCount > 0 ? "In use – unlink subscriptions first" : "Delete category"}
                   >
-                    Remove
+                    <Trash2 className="size-3.5" />
+                    {usageCount > 0 ? "In use" : "Delete"}
                   </Button>
                 </div>
               );
@@ -265,7 +286,7 @@ export function SettingsScreen() {
                     <div>
                       <div className="font-medium">{method.name}</div>
                       <div className="text-xs capitalize text-[#64748b]">
-                        {method.type.replace("_", " ")} · {usageCount} active links
+                        {method.type.replace("_", " ")} · {usageCount > 0 ? `${usageCount} active link${usageCount !== 1 ? "s" : ""}` : "Unused"}
                       </div>
                     </div>
                   </div>
@@ -274,8 +295,10 @@ export function SettingsScreen() {
                     size="sm"
                     disabled={usageCount > 0}
                     onClick={() => removePaymentMethod(method.id)}
+                    title={usageCount > 0 ? "In use – unlink subscriptions first" : "Delete payment method"}
                   >
-                    Remove
+                    <Trash2 className="size-3.5" />
+                    {usageCount > 0 ? "In use" : "Delete"}
                   </Button>
                 </div>
               );

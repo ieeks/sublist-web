@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
@@ -136,6 +137,14 @@ export function DashboardScreen() {
             </button>
           ))}
         </div>
+
+        {categoryBreakdown.length > 0 && (
+          <DonutCard
+            title="By category"
+            items={categoryBreakdown}
+            currency={data.settings.defaultCurrency}
+          />
+        )}
       </div>
 
       <div className="hidden lg:block">
@@ -260,6 +269,14 @@ export function DashboardScreen() {
                   </CardContent>
                 </Card>
 
+                {categoryBreakdown.length > 0 && (
+                  <DonutCard
+                    title="By category"
+                    items={categoryBreakdown}
+                    currency={data.settings.defaultCurrency}
+                  />
+                )}
+
                 <BreakdownCard
                   title="Category breakdown"
                   items={categoryBreakdown.map((item) => ({
@@ -293,6 +310,64 @@ function MetricCard({ label, value }: { label: string; value: string }) {
         <div className="text-[12px] text-[#9aa5b8]">{label}</div>
         <div className="mt-5 text-[21px] font-semibold tracking-[-0.05em] text-[#455063]">
           {value}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DonutCard({
+  title,
+  items,
+  currency,
+}: {
+  title: string;
+  items: Array<{ name: string; value: number; color: string }>;
+  currency: string;
+}) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  return (
+    <Card className="rounded-[24px]">
+      <CardContent className="p-4">
+        <div className="mb-3 text-[13px] font-semibold text-[#596276]">{title}</div>
+        <div className="flex items-center gap-4">
+          <div className="shrink-0">
+            <ResponsiveContainer width={96} height={96}>
+              <PieChart>
+                <Pie
+                  data={items}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={28}
+                  outerRadius={44}
+                  paddingAngle={2}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {items.map((item) => (
+                    <Cell key={item.name} fill={item.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => formatCurrency(Number(value ?? 0), currency)}
+                  contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            {items.map((item) => (
+              <div key={item.name} className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-2 text-[#728093]">
+                  <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="truncate">{item.name}</span>
+                </div>
+                <span className="ml-2 shrink-0 font-medium text-[#596276]">
+                  {total > 0 ? `${Math.round((item.value / total) * 100)}%` : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>

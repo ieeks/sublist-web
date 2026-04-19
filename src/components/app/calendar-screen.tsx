@@ -139,7 +139,11 @@ export function CalendarScreen() {
                         {item.subscription.name}
                       </div>
                     ))}
-                    {items.length > 0 ? <div className="text-[10px] text-[#94a3b8] sm:hidden">Due</div> : null}
+                    {items.length > 0 && items.length < 2 ? (
+                      <div className="truncate rounded-full bg-[#f8fafc] px-2 py-1 text-[9px] font-medium text-[#475569] sm:hidden">
+                        {items[0].subscription.name}
+                      </div>
+                    ) : null}
                     {items.length > 2 ? (
                       <div className="hidden text-xs text-[#94a3b8] sm:block">+{items.length - 2} more</div>
                     ) : null}
