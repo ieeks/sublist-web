@@ -1,8 +1,8 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, RotateCcw, Search } from "lucide-react";
+import { Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
@@ -10,6 +10,13 @@ import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialo
 import { useAppData } from "@/components/providers/app-providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,11 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { convertCurrency, toEurCents } from "@/lib/currencies";
 import { formatCurrency } from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
 export function SubscriptionsScreen() {
-  const { data, ready } = useAppData();
+  const { data, ready, fxRates, deleteSubscription } = useAppData();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -66,8 +74,10 @@ export function SubscriptionsScreen() {
     setDialogOpen(true);
   }
 
+  const defaultCurrency = data.settings.defaultCurrency;
+
   const totalDue = filteredSubscriptions.reduce(
-    (sum, subscription) => sum + subscription.amountCents,
+    (sum, sub) => sum + convertCurrency(sub.amountCents, sub.currency, defaultCurrency, fxRates),
     0,
   );
 
@@ -96,49 +106,23 @@ export function SubscriptionsScreen() {
             <div className="flex items-center justify-between text-[13px] text-[#9eabbf]">
               <div>Total due</div>
               <div className="font-medium text-[#8491a6]">
-                {formatCurrency(totalDue, data.settings.defaultCurrency)}
+                {formatCurrency(totalDue, defaultCurrency)}
               </div>
             </div>
           </div>
 
-          <div className="mt-6 space-y-5">
+          <div className="mt-6 space-y-3">
             {filteredSubscriptions.map((subscription) => (
-              <button
-                type="button"
+              <SwipeDeleteRow
                 key={subscription.id}
-                onClick={() => {
+                subscription={subscription}
+                fxRates={fxRates}
+                onEdit={() => {
                   setSelectedId(subscription.id);
                   openEditDialog(subscription);
                 }}
-                className="block w-full text-left"
-              >
-                <div className="rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]">
-                  <div className="flex items-center gap-4">
-                    <BrandAvatar
-                      logoKey={subscription.logoKey}
-                      name={subscription.name}
-                      className="size-14 rounded-[16px]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[16px] font-semibold tracking-[-0.04em] text-[#4b5263]">
-                        {subscription.name}
-                      </div>
-                      <div className="mt-1 text-[12px] text-[#8f9aac]">
-                        {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
-                      </div>
-                    </div>
-                    <div className="min-w-[46px] text-right">
-                      <div className="flex items-center justify-end gap-1 text-[10px] text-[#b0b6c4]">
-                        <RotateCcw className="size-2.5" />
-                        <span>Next</span>
-                      </div>
-                      <div className="mt-0.5 text-[12px] font-medium text-[#8894a6]">
-                        {formatDateLabel(subscription.nextDueDate)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </button>
+                onDelete={() => deleteSubscription(subscription.id)}
+              />
             ))}
           </div>
         </div>
@@ -152,7 +136,7 @@ export function SubscriptionsScreen() {
                 <div>
                   <div className="text-[12px] text-[#a1a8b8]">Total due</div>
                   <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
-                    {formatCurrency(totalDue, data.settings.defaultCurrency)}
+                    {formatCurrency(totalDue, defaultCurrency)}
                   </div>
                 </div>
                 <Button onClick={openCreateDialog} size="icon">
@@ -205,6 +189,10 @@ export function SubscriptionsScreen() {
           <div className="space-y-3">
             {filteredSubscriptions.map((subscription) => {
               const selected = effectiveSelectedId === subscription.id;
+              const eurCents =
+                subscription.currency !== "EUR"
+                  ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
+                  : null;
               return (
                 <button
                   type="button"
@@ -232,6 +220,11 @@ export function SubscriptionsScreen() {
                           </div>
                           <div className="mt-0.5 text-[12px] text-[#9ca3af]">
                             {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
+                            {eurCents !== null && (
+                              <span className="ml-1 text-[#b0b6c4]">
+                                · {formatCurrency(eurCents, "EUR")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
@@ -270,6 +263,134 @@ export function SubscriptionsScreen() {
         onOpenChange={setDialogOpen}
         subscription={editingSubscription}
       />
+    </>
+  );
+}
+
+function SwipeDeleteRow({
+  subscription,
+  fxRates,
+  onEdit,
+  onDelete,
+}: {
+  subscription: Subscription;
+  fxRates: Record<string, number>;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [offsetX, setOffsetX] = useState(0);
+  const [confirming, setConfirming] = useState(false);
+  const startXRef = useRef(0);
+  const REVEAL = 80;
+  const isOpen = offsetX <= -(REVEAL / 2);
+
+  const eurCents =
+    subscription.currency !== "EUR"
+      ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
+      : null;
+
+  return (
+    <>
+      <div className="relative overflow-hidden rounded-[24px]">
+        {/* Red delete zone revealed on swipe */}
+        <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center rounded-r-[24px] bg-[#ef4444]">
+          <button
+            type="button"
+            aria-label={`Delete ${subscription.name}`}
+            className="flex size-full items-center justify-center"
+            onClick={() => setConfirming(true)}
+          >
+            <Trash2 className="size-5 text-white" />
+          </button>
+        </div>
+
+        {/* Sliding card */}
+        <div
+          className="relative rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]"
+          style={{
+            transform: `translateX(${offsetX}px)`,
+            transition: offsetX === 0 || isOpen ? "transform 0.25s ease" : undefined,
+            willChange: "transform",
+            touchAction: "pan-y",
+          }}
+          onTouchStart={(e) => {
+            startXRef.current = e.touches[0].clientX;
+          }}
+          onTouchMove={(e) => {
+            const dx = e.touches[0].clientX - startXRef.current;
+            if (dx < 0) setOffsetX(Math.max(-REVEAL, dx));
+            else if (isOpen && dx > 0) setOffsetX(Math.min(0, offsetX + dx));
+          }}
+          onTouchEnd={() => {
+            if (offsetX < -(REVEAL / 2)) setOffsetX(-REVEAL);
+            else setOffsetX(0);
+          }}
+          onClick={() => {
+            if (isOpen) { setOffsetX(0); return; }
+            onEdit();
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <BrandAvatar
+              logoKey={subscription.logoKey}
+              name={subscription.name}
+              className="size-14 rounded-[16px]"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-[16px] font-semibold tracking-[-0.04em] text-[#4b5263]">
+                {subscription.name}
+              </div>
+              <div className="mt-1 text-[12px] text-[#8f9aac]">
+                {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
+                {eurCents !== null && (
+                  <span className="ml-1 text-[#b0b6c4]">
+                    · {formatCurrency(eurCents, "EUR")}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="min-w-[46px] text-right">
+              <div className="flex items-center justify-end gap-1 text-[10px] text-[#b0b6c4]">
+                <RotateCcw className="size-2.5" />
+                <span>Next</span>
+              </div>
+              <div className="mt-0.5 text-[12px] font-medium text-[#8894a6]">
+                {formatDateLabel(subscription.nextDueDate)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog
+        open={confirming}
+        onOpenChange={(open) => {
+          if (!open) { setConfirming(false); setOffsetX(0); }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove {subscription.name}?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete this subscription and its payment history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => { setConfirming(false); setOffsetX(0); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { onDelete(); setConfirming(false); }}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

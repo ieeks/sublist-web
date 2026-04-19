@@ -33,11 +33,14 @@ export function SettingsScreen() {
     updateSettings,
     addCategory,
     removeCategory,
+    updateCategory,
     addPaymentMethod,
     removePaymentMethod,
     importSubscriptions,
   } = useAppData();
 
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [categoryColor, setCategoryColor] = useState("#5e8cff");
   const [methodName, setMethodName] = useState("");
@@ -66,6 +69,8 @@ export function SettingsScreen() {
                 <SelectItem value="EUR">EUR</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
                 <SelectItem value="GBP">GBP</SelectItem>
+                <SelectItem value="TRY">TRY</SelectItem>
+                <SelectItem value="INR">INR</SelectItem>
               </SelectContent>
             </Select>
           </label>
@@ -200,7 +205,33 @@ export function SettingsScreen() {
                       style={{ backgroundColor: category.color }}
                     />
                     <div>
-                      <div className="font-medium">{category.name}</div>
+                      {editingCategoryId === category.id ? (
+                        <input
+                          autoFocus
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onBlur={() => {
+                            if (editingName.trim()) updateCategory(category.id, { name: editingName.trim() });
+                            setEditingCategoryId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              if (editingName.trim()) updateCategory(category.id, { name: editingName.trim() });
+                              setEditingCategoryId(null);
+                            }
+                            if (e.key === "Escape") setEditingCategoryId(null);
+                          }}
+                          className="rounded-md border border-[#5e8cff] px-2 py-0.5 text-sm font-medium outline-none"
+                        />
+                      ) : (
+                        <div
+                          className="cursor-pointer font-medium hover:text-[#5e8cff]"
+                          onClick={() => { setEditingCategoryId(category.id); setEditingName(category.name); }}
+                          title="Click to rename"
+                        >
+                          {category.name}
+                        </div>
+                      )}
                       <div className="text-xs text-[#64748b]">
                         {usageCount > 0 ? `${usageCount} linked subscription${usageCount !== 1 ? "s" : ""}` : "Unused"}
                       </div>

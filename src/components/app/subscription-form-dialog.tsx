@@ -218,11 +218,18 @@ function SubscriptionFormBody({
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-medium text-[#475569]">Currency</span>
-              <Input
-                value={draft.currency}
-                onChange={(event) => update("currency", event.target.value.toUpperCase())}
-                maxLength={3}
-              />
+              <Select value={draft.currency} onValueChange={(value) => update("currency", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="TRY">TRY</SelectItem>
+                  <SelectItem value="INR">INR</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-medium text-[#475569]">Billing cycle</span>
