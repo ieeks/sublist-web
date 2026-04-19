@@ -137,6 +137,7 @@ export function CalendarScreen() {
                         logoKey={item.subscription.logoKey}
                         name={item.subscription.name}
                         className="size-5 rounded-[5px] sm:size-6 sm:rounded-[6px]"
+                        compact
                       />
                     ))}
                     {items.length > 3 ? (

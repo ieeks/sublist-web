@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 
+import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,8 +23,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Subscription, SubscriptionDraft } from "@/lib/types";
-
-const assetBase = process.env.NODE_ENV === "production" ? "/sublist-web" : "";
 
 const KNOWN_SERVICES = [
   { key: "chatgpt", label: "ChatGPT" },
@@ -163,15 +161,12 @@ function SubscriptionFormBody({
                       : "border-[#eef0f5] bg-white text-[#9aa5b8] hover:border-[#d0d8ee]",
                   )}
                 >
-                  <div className="relative size-8 overflow-hidden rounded-[8px] border border-[#f0f2f6] bg-white">
-                    <Image
-                      src={`${assetBase}/assets/logos/${service.key}.svg`}
-                      alt={service.label}
-                      fill
-                      sizes="32px"
-                      className="object-contain p-1.5"
-                    />
-                  </div>
+                  <BrandAvatar
+                    logoKey={service.key}
+                    name={service.label}
+                    className="size-8 rounded-[8px]"
+                    compact
+                  />
                   <span className="truncate w-full text-center leading-tight">{service.label}</span>
                 </button>
               ))}

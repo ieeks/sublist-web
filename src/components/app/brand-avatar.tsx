@@ -20,10 +20,12 @@ export function BrandAvatar({
   logoKey,
   name,
   className,
+  compact = false,
 }: {
   logoKey: string;
   name: string;
   className?: string;
+  compact?: boolean;
 }) {
   const source = logoMap[logoKey];
 
@@ -52,7 +54,7 @@ export function BrandAvatar({
         alt={`${name} logo`}
         fill
         sizes="96px"
-        className="object-contain p-3"
+        className={cn("object-contain", compact ? "p-1" : "p-3")}
       />
     </div>
   );
