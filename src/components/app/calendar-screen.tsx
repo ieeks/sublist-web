@@ -117,8 +117,8 @@ export function CalendarScreen() {
                   className={[
                     "min-h-[88px] rounded-[16px] border p-2 transition sm:min-h-[118px] sm:rounded-[24px] sm:p-3",
                     isSameMonth(day, month)
-                      ? "border-white/80 bg-white/82"
-                      : "border-white/50 bg-white/40 text-[#94a3b8]",
+                      ? "border-white/80 bg-white/82 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(15,23,42,0.55)]"
+                      : "border-white/50 bg-white/40 text-[#94a3b8] dark:border-[rgba(148,163,184,0.06)] dark:bg-[rgba(15,23,42,0.25)]",
                     isToday(day) ? "ring-2 ring-[#5e8cff]/30" : "",
                   ].join(" ")}
                 >
@@ -130,22 +130,19 @@ export function CalendarScreen() {
                       </Badge>
                     ) : null}
                   </div>
-                  <div className="mt-2 space-y-2 sm:mt-3">
-                    {items.slice(0, 2).map((item) => (
-                      <div
+                  <div className="mt-1.5 flex flex-wrap gap-1 sm:mt-2">
+                    {items.slice(0, 3).map((item) => (
+                      <BrandAvatar
                         key={`${item.subscription.id}-${item.date}`}
-                        className="hidden truncate rounded-full bg-[#f8fafc] px-3 py-1.5 text-xs font-medium text-[#475569] sm:block"
-                      >
-                        {item.subscription.name}
-                      </div>
+                        logoKey={item.subscription.logoKey}
+                        name={item.subscription.name}
+                        className="size-5 rounded-[5px] sm:size-6 sm:rounded-[6px]"
+                      />
                     ))}
-                    {items.length > 0 && items.length < 2 ? (
-                      <div className="truncate rounded-full bg-[#f8fafc] px-2 py-1 text-[9px] font-medium text-[#475569] sm:hidden">
-                        {items[0].subscription.name}
+                    {items.length > 3 ? (
+                      <div className="flex size-5 items-center justify-center rounded-[5px] bg-[#f0f4ff] text-[8px] font-semibold text-[#6b7280] sm:size-6 sm:rounded-[6px] sm:text-[9px]">
+                        +{items.length - 3}
                       </div>
-                    ) : null}
-                    {items.length > 2 ? (
-                      <div className="hidden text-xs text-[#94a3b8] sm:block">+{items.length - 2} more</div>
                     ) : null}
                   </div>
                 </div>
