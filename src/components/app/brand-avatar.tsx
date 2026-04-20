@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -28,16 +31,49 @@ export function BrandAvatar({
   compact?: boolean;
 }) {
   const source = logoMap[logoKey];
+  const [simpleIcon, setSimpleIcon] = useState<{ hex: string; path: string } | null>(null);
 
-  if (!source) {
+  useEffect(() => {
+    if (source || !logoKey) return;
+    import("@/lib/icons").then(({ getIconBySlug }) => {
+      const icon = getIconBySlug(logoKey);
+      setSimpleIcon(icon ? { hex: icon.hex, path: icon.path } : null);
+    });
+  }, [logoKey, source]);
+
+  if (source) {
     return (
       <div
         className={cn(
-          "flex items-center justify-center rounded-[24px] bg-[#eef2ff] text-sm font-semibold text-[#4f46e5]",
+          "relative overflow-hidden rounded-[20px] border border-[#f0f2f6] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]",
           className,
         )}
       >
-        {name.slice(0, 2).toUpperCase()}
+        <Image
+          src={source}
+          alt={`${name} logo`}
+          fill
+          sizes="96px"
+          className={cn("object-contain", compact ? "p-1" : "p-3")}
+        />
+      </div>
+    );
+  }
+
+  if (simpleIcon) {
+    return (
+      <div
+        className={cn("flex items-center justify-center overflow-hidden rounded-[20px]", className)}
+        style={{ backgroundColor: `#${simpleIcon.hex}1a` }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className={compact ? "size-[58%]" : "size-[52%]"}
+          fill={`#${simpleIcon.hex}`}
+          aria-label={`${name} logo`}
+        >
+          <path d={simpleIcon.path} />
+        </svg>
       </div>
     );
   }
@@ -45,17 +81,11 @@ export function BrandAvatar({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[20px] border border-[#f0f2f6] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]",
+        "flex items-center justify-center rounded-[20px] bg-[#eef2ff] text-sm font-semibold text-[#4f46e5]",
         className,
       )}
     >
-      <Image
-        src={source}
-        alt={`${name} logo`}
-        fill
-        sizes="96px"
-        className={cn("object-contain", compact ? "p-1" : "p-3")}
-      />
+      {name.slice(0, 2).toUpperCase()}
     </div>
   );
 }

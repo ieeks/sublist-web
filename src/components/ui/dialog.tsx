@@ -16,16 +16,16 @@ export function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[#d8dfea]/60 backdrop-blur-md" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[#d8dfea]/60 backdrop-blur-md dark:bg-black/60" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.5rem)] max-w-2xl max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[32px] border border-white/70 bg-[#f8fafc]/95 p-6 shadow-[0_45px_120px_-40px_rgba(15,23,42,0.45)] outline-none",
+          "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.5rem)] max-w-2xl max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[32px] border border-white/70 bg-[#f8fafc]/95 p-6 shadow-[0_45px_120px_-40px_rgba(15,23,42,0.45)] outline-none dark:border-[rgba(148,163,184,0.18)] dark:bg-[rgba(11,18,32,0.97)] dark:shadow-[0_45px_120px_-40px_rgba(0,0,0,0.7)]",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 text-[#6b7280] transition hover:bg-white/80 hover:text-[#111827]">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 text-[#6b7280] transition hover:bg-white/80 hover:text-[#111827] dark:text-[#94a3b8] dark:hover:bg-[rgba(30,41,59,0.8)] dark:hover:text-[#f8fafc]">
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

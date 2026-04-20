@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
@@ -117,6 +117,19 @@ function SubscriptionFormBody({
   const isKnownKey = KNOWN_SERVICES.some((s) => s.key === draft.logoKey);
   const [customKey, setCustomKey] = useState(!isKnownKey ? draft.logoKey : "");
   const [useCustom, setUseCustom] = useState(!isKnownKey && draft.logoKey !== "");
+  const [iconSearch, setIconSearch] = useState("");
+  const [iconResults, setIconResults] = useState<
+    Array<{ slug: string; title: string; hex: string; path: string }>
+  >([]);
+
+  useEffect(() => {
+    if (!iconSearch.trim()) return;
+    let cancelled = false;
+    import("@/lib/icons").then(({ searchIcons }) => {
+      if (!cancelled) setIconResults(searchIcons(iconSearch));
+    });
+    return () => { cancelled = true; };
+  }, [iconSearch]);
 
   return (
     <>
@@ -152,11 +165,13 @@ function SubscriptionFormBody({
                   type="button"
                   onClick={() => {
                     update("logoKey", service.key);
+                    setIconSearch("");
+                    setIconResults([]);
                     setUseCustom(false);
                   }}
                   className={cn(
                     "flex flex-col items-center gap-1 rounded-[12px] border p-2 text-[10px] transition",
-                    draft.logoKey === service.key && !useCustom
+                    draft.logoKey === service.key && !iconSearch && !useCustom
                       ? "border-[#5e8cff] bg-[#eff4ff] text-[#4f77b8]"
                       : "border-[#eef0f5] bg-white text-[#9aa5b8] hover:border-[#d0d8ee]",
                   )}
@@ -170,22 +185,51 @@ function SubscriptionFormBody({
                   <span className="truncate w-full text-center leading-tight">{service.label}</span>
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={() => setUseCustom(true)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-[12px] border p-2 text-[10px] transition",
-                  useCustom
-                    ? "border-[#5e8cff] bg-[#eff4ff] text-[#4f77b8]"
-                    : "border-[#eef0f5] bg-white text-[#9aa5b8] hover:border-[#d0d8ee]",
-                )}
-              >
-                <div className="flex size-8 items-center justify-center rounded-[8px] border border-[#eef0f5] text-lg font-semibold text-[#9aa5b8]">
-                  ?
-                </div>
-                <span>Other</span>
-              </button>
             </div>
+
+            <Input
+              value={iconSearch}
+              onChange={(e) => {
+                const val = e.target.value;
+                setIconSearch(val);
+                if (!val.trim()) setIconResults([]);
+                setUseCustom(false);
+              }}
+              placeholder="Search service… (3 000+ icons)"
+            />
+
+            {iconResults.length > 0 && (
+              <div className="grid grid-cols-5 gap-2 max-h-44 overflow-y-auto rounded-[12px] border border-[#eef0f5] p-2">
+                {iconResults.map((icon) => (
+                  <button
+                    key={icon.slug}
+                    type="button"
+                    onClick={() => {
+                      update("logoKey", icon.slug);
+                      setIconSearch("");
+                      setIconResults([]);
+                    }}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-[12px] border p-2 text-[10px] transition",
+                      draft.logoKey === icon.slug
+                        ? "border-[#5e8cff] bg-[#eff4ff] text-[#4f77b8]"
+                        : "border-[#eef0f5] bg-white text-[#9aa5b8] hover:border-[#d0d8ee]",
+                    )}
+                  >
+                    <div
+                      className="flex size-8 items-center justify-center rounded-[8px]"
+                      style={{ backgroundColor: `#${icon.hex}1a` }}
+                    >
+                      <svg viewBox="0 0 24 24" className="size-5" fill={`#${icon.hex}`}>
+                        <path d={icon.path} />
+                      </svg>
+                    </div>
+                    <span className="truncate w-full text-center leading-tight">{icon.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {useCustom && (
               <Input
                 value={customKey}
@@ -194,7 +238,6 @@ function SubscriptionFormBody({
                   update("logoKey", event.target.value);
                 }}
                 placeholder="e.g. spotify"
-                className="mt-1"
               />
             )}
           </div>

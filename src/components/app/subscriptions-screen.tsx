@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 
@@ -279,10 +279,32 @@ function SwipeDeleteRow({
   onDelete: () => void;
 }) {
   const [offsetX, setOffsetX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const startXRef = useRef(0);
+  const startOffsetRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const REVEAL = 80;
   const isOpen = offsetX <= -(REVEAL / 2);
+
+  // Close when another card opens
+  useEffect(() => {
+    function handleOtherOpen(e: Event) {
+      if ((e as CustomEvent<{ id: string }>).detail.id !== subscription.id) setOffsetX(0);
+    }
+    window.addEventListener("swipe-card-open", handleOtherOpen);
+    return () => window.removeEventListener("swipe-card-open", handleOtherOpen);
+  }, [subscription.id]);
+
+  // Close on touch outside when open
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleOutside(e: TouchEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOffsetX(0);
+    }
+    document.addEventListener("touchstart", handleOutside, { passive: true });
+    return () => document.removeEventListener("touchstart", handleOutside);
+  }, [isOpen]);
 
   const eurCents =
     subscription.currency !== "EUR"
@@ -291,8 +313,8 @@ function SwipeDeleteRow({
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-[24px]">
-        {/* Red delete zone revealed on swipe */}
+      <div ref={containerRef} className="relative overflow-hidden rounded-[24px]">
+        {/* Red delete zone — stays behind the card (card has z-10) */}
         <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center rounded-r-[24px] bg-[#ef4444]">
           <button
             type="button"
@@ -304,26 +326,31 @@ function SwipeDeleteRow({
           </button>
         </div>
 
-        {/* Sliding card */}
+        {/* Sliding card — z-10 ensures it covers the red zone at rest */}
         <div
-          className="relative rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]"
+          className="relative z-10 rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]"
           style={{
             transform: `translateX(${offsetX}px)`,
-            transition: offsetX === 0 || isOpen ? "transform 0.25s ease" : undefined,
-            willChange: "transform",
+            transition: isDragging ? undefined : "transform 0.25s ease",
             touchAction: "pan-y",
           }}
           onTouchStart={(e) => {
             startXRef.current = e.touches[0].clientX;
+            startOffsetRef.current = offsetX;
+            setIsDragging(true);
           }}
           onTouchMove={(e) => {
             const dx = e.touches[0].clientX - startXRef.current;
-            if (dx < 0) setOffsetX(Math.max(-REVEAL, dx));
-            else if (isOpen && dx > 0) setOffsetX(Math.min(0, offsetX + dx));
+            setOffsetX(Math.min(0, Math.max(-REVEAL, startOffsetRef.current + dx)));
           }}
           onTouchEnd={() => {
-            if (offsetX < -(REVEAL / 2)) setOffsetX(-REVEAL);
-            else setOffsetX(0);
+            setIsDragging(false);
+            if (offsetX < -(REVEAL / 2)) {
+              setOffsetX(-REVEAL);
+              window.dispatchEvent(new CustomEvent("swipe-card-open", { detail: { id: subscription.id } }));
+            } else {
+              setOffsetX(0);
+            }
           }}
           onClick={() => {
             if (isOpen) { setOffsetX(0); return; }
