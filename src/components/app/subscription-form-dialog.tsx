@@ -211,7 +211,7 @@ function SubscriptionFormBody({
               <Input
                 value={draft.amount}
                 onChange={(event) => update("amount", event.target.value)}
-                placeholder="19.99"
+                placeholder="19,99"
                 inputMode="decimal"
                 required
               />

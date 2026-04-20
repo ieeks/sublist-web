@@ -76,7 +76,7 @@ function draftToSubscription(draft: SubscriptionDraft): Subscription {
       createId("subscription"),
     name: draft.name,
     logoKey: draft.logoKey,
-    amountCents: Math.round(Number.parseFloat(draft.amount || "0") * 100),
+    amountCents: Math.round(Number.parseFloat((draft.amount || "0").replace(",", ".")) * 100),
     currency: draft.currency,
     billingCycle: draft.billingCycle,
     categoryId: draft.categoryId,

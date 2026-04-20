@@ -21,7 +21,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amountCents: number, currency = "EUR") {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("de-AT", {
     style: "currency",
     currency,
     maximumFractionDigits: 2,

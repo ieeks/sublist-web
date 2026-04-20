@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSelectedLayoutSegment } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CreditCard,
@@ -32,7 +32,6 @@ export function AppShell({
   actions?: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const segment = useSelectedLayoutSegment();
   const { data } = useAppData();
   const categories = new Map(data.categories.map((item) => [item.id, item]));
   const sidebarSubscriptions = data.subscriptions
