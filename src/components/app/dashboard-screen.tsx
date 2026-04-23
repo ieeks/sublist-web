@@ -11,7 +11,7 @@ import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { useAppData } from "@/components/providers/app-providers";
 import { Card, CardContent } from "@/components/ui/card";
 import { convertCurrency } from "@/lib/currencies";
-import { formatCurrency, toMonthlyAmount } from "@/lib/utils";
+import { daysUntil, formatCurrency, toMonthlyAmount } from "@/lib/utils";
 
 export function DashboardScreen() {
   const { data, ready, fxRates } = useAppData();
@@ -99,58 +99,150 @@ export function DashboardScreen() {
 
   return (
     <>
-      <div className="space-y-3 lg:hidden">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-[11px] text-[#acb3c1]">Total due</div>
-            <div className="mt-2 text-[22px] font-semibold tracking-[-0.05em] text-[#4b5263]">
-              {formatCurrency(totalDue, defaultCurrency)}
-            </div>
-            <div className="mt-1 text-[11px] text-[#9ca3af]">
-              {formatCurrency(averagePerMonth, defaultCurrency)} average monthly
-            </div>
-          </CardContent>
-        </Card>
+      {/* ── Mobile layout ── */}
+      <div className="lg:hidden">
+        <div className="mx-auto max-w-sm px-5 pt-6">
+          {/* Page title */}
+          <div
+            className="mb-5 text-[26px] font-bold tracking-[-0.8px]"
+            style={{ color: "var(--text)" }}
+          >
+            Dashboard
+          </div>
 
-        <div className="space-y-2">
-          {launches.slice(0, 4).map((subscription) => (
-            <button
-              type="button"
-              key={subscription.id}
-              onClick={() => selectSubscription(subscription.id)}
-              className="block w-full text-left"
+          {/* Donut hero card */}
+          <div
+            className="mb-4 rounded-[20px] p-5"
+            style={{
+              background: "var(--hero-tint, var(--surface))",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div className="flex items-center gap-5">
+              <MobileDonutChart
+                data={categoryBreakdown}
+                total={averagePerMonth}
+                currency={defaultCurrency}
+              />
+              {/* Legend */}
+              <div className="min-w-0 flex-1 space-y-2">
+                {categoryBreakdown.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between text-[12px]">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: item.color }}
+                      />
+                      <span style={{ color: "var(--sub)" }}>{item.name}</span>
+                    </div>
+                    <span className="font-semibold" style={{ color: "var(--text)" }}>
+                      {Math.round((item.value / Math.max(averagePerMonth, 1)) * 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Stat tiles */}
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div
+              className="rounded-[16px] p-4"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
-              <Card>
-                <CardContent className="flex items-center gap-3 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.5px]" style={{ color: "var(--sub)" }}>
+                Active
+              </div>
+              <div
+                className="mt-2 text-[24px] font-bold tracking-[-0.8px]"
+                style={{ color: "var(--text)" }}
+              >
+                {subscriptions.length}
+              </div>
+              <div className="text-[11px]" style={{ color: "var(--sub)" }}>subscriptions</div>
+            </div>
+            <div
+              className="rounded-[16px] p-4"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-[0.5px]" style={{ color: "var(--sub)" }}>
+                Next
+              </div>
+              <div
+                className="mt-2 text-[16px] font-bold tracking-[-0.5px]"
+                style={{ color: launches[0] ? "var(--text)" : "var(--sub)" }}
+              >
+                {launches[0] ? format(parseISO(launches[0].nextDueDate), "MMM d") : "—"}
+              </div>
+              <div className="truncate text-[11px]" style={{ color: "var(--sub)" }}>
+                {launches[0]?.name ?? "no upcoming"}
+              </div>
+            </div>
+          </div>
+
+          {/* Upcoming list */}
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-[16px] font-semibold" style={{ color: "var(--text)" }}>
+              Upcoming
+            </div>
+            <a
+              href="/subscriptions"
+              className="text-[13px] font-medium"
+              style={{ color: "var(--accent)" }}
+            >
+              See all →
+            </a>
+          </div>
+          <div
+            className="rounded-[16px] overflow-hidden"
+            style={{ border: "1px solid var(--border)" }}
+          >
+            {launches.slice(0, 4).map((subscription, index) => {
+              const daysLeft = daysUntil(subscription.nextDueDate);
+              const isUrgent = daysLeft <= 7;
+              return (
+                <button
+                  type="button"
+                  key={subscription.id}
+                  onClick={() => selectSubscription(subscription.id)}
+                  className="sl-tap-target flex w-full items-center gap-3 px-4 py-3 text-left"
+                  style={{
+                    background: "var(--surface)",
+                    borderBottom: index < Math.min(launches.length, 4) - 1
+                      ? "1px solid var(--border)"
+                      : undefined,
+                  }}
+                >
                   <BrandAvatar
                     logoKey={subscription.logoKey}
                     name={subscription.name}
-                    className="size-10 rounded-[12px]"
+                    className="size-9 shrink-0 rounded-[9px]"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-[12px] font-semibold text-[#4d5567]">
+                    <div
+                      className="truncate text-[14px] font-semibold"
+                      style={{ color: "var(--text)" }}
+                    >
                       {subscription.name}
                     </div>
-                    <div className="text-[10px] text-[#9ca3af]">
-                      {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
+                    <div className="text-[12px]" style={{ color: "var(--sub)" }}>
+                      {formatCurrency(subscription.amountCents, subscription.currency)}
                     </div>
                   </div>
-                  <div className="text-[12px] text-[#96a0b2]">
-                    {format(parseISO(subscription.nextDueDate), "MMM d")}
+                  <div className="shrink-0 text-right">
+                    <div
+                      className="text-[13px] font-semibold"
+                      style={{ color: isUrgent ? "#f97316" : "var(--text)" }}
+                    >
+                      {isUrgent && "⚡ "}
+                      {format(parseISO(subscription.nextDueDate), "MMM d")}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </button>
-          ))}
+                </button>
+              );
+            })}
+          </div>
         </div>
-
-        {categoryBreakdown.length > 0 && (
-          <DonutCard
-            title="By category"
-            items={categoryBreakdown}
-            currency={defaultCurrency}
-          />
-        )}
       </div>
 
       <div className="hidden lg:block">
@@ -377,6 +469,76 @@ function DonutCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function MobileDonutChart({
+  data,
+  total,
+  currency,
+}: {
+  data: Array<{ name: string; value: number; color: string }>;
+  total: number;
+  currency: string;
+}) {
+  const SIZE = 148;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const r = SIZE * 0.365; // ~54
+  const strokeWidth = SIZE * 0.12; // ~18
+  const circumference = 2 * Math.PI * r;
+  const GAP = 3;
+
+  let cumulativeAngle = -90;
+
+  return (
+    <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
+      <svg width={SIZE} height={SIZE} style={{ overflow: "visible" }}>
+        {/* Track */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          strokeWidth={strokeWidth}
+          stroke="rgba(255,255,255,0.05)"
+        />
+        {data.map((segment) => {
+          const segProportion = segment.value / Math.max(total, 1);
+          const dashLength = Math.max(0, segProportion * circumference - GAP);
+          const angle = cumulativeAngle;
+          cumulativeAngle += segProportion * 360;
+          return (
+            <circle
+              key={segment.name}
+              cx={cx}
+              cy={cy}
+              r={r}
+              fill="none"
+              strokeWidth={strokeWidth}
+              stroke={segment.color}
+              strokeLinecap="round"
+              strokeDasharray={`${dashLength} ${circumference}`}
+              transform={`rotate(${angle}, ${cx}, ${cy})`}
+            />
+          );
+        })}
+      </svg>
+      {/* Center label */}
+      <div
+        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center"
+      >
+        <div
+          className="text-[18px] font-bold leading-tight"
+          style={{ color: "var(--text)", letterSpacing: "-0.8px" }}
+        >
+          {formatCurrency(total, currency)}
+        </div>
+        <div className="text-[11px]" style={{ color: "var(--sub)" }}>
+          / mo
+        </div>
+      </div>
+    </div>
   );
 }
 

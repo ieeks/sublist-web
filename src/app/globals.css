@@ -13,6 +13,12 @@
   --color-foreground: var(--foreground);
   --font-sans: "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
   --font-mono: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  /* Sublist category colors */
+  --color-sl-entertainment: #f97316;
+  --color-sl-ai: #5b8def;
+  --color-sl-cloud: #34d399;
+  --color-sl-developer: #a78bfa;
+  --color-sl-danger: #ef4444;
 }
 
 .dark {
@@ -20,6 +26,31 @@
   --foreground: #f8fafc;
   --muted: #aab6cf;
   --panel: rgba(15, 23, 42, 0.76);
+  /* Sublist mobile tokens */
+  --bg: #0c101c;
+  --surface: #141927;
+  --surface-2: #1b2236;
+  --surface-3: #222d42;
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #eef2ff;
+  --sub: #7b8799;
+  --accent: #5b8def;
+  --danger: #ef4444;
+}
+
+.light {
+  /* Sublist mobile tokens */
+  --bg: #f4f0ea;
+  --surface: #fffef9;
+  --surface-2: #ede9e1;
+  --surface-3: #e2ddd5;
+  --border: rgba(0, 0, 0, 0.06);
+  --text: #0f1320;
+  --sub: #8a8070;
+  --accent: #3b75d9;
+  --danger: #ef4444;
+  --hero-tint: #ede8ff;
+  --hero-stroke: #c4b5fd;
 }
 
 * {
@@ -192,4 +223,32 @@ select {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Mobile bottom sheet animations */
+@keyframes sl-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes sl-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.sl-sheet-overlay {
+  animation: sl-fade-in 200ms ease forwards;
+}
+
+.sl-sheet-content {
+  animation: sl-slide-up 350ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Tap feedback for mobile interactive elements */
+.sl-tap-target {
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.1s;
+}
+.sl-tap-target:active {
+  opacity: 0.7;
 }

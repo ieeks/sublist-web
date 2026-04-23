@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
+import { MobileDetailSheet } from "@/components/app/mobile-detail-sheet";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialog";
 import { useAppData } from "@/components/providers/app-providers";
@@ -26,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { convertCurrency, toEurCents } from "@/lib/currencies";
-import { formatCurrency } from "@/lib/utils";
+import { daysUntil, formatCurrency } from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
 export function SubscriptionsScreen() {
@@ -36,6 +37,7 @@ export function SubscriptionsScreen() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | undefined>(data.subscriptions[0]?.id);
+  const [detailSheetId, setDetailSheetId] = useState<string | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | undefined>();
   const deferredQuery = useDeferredValue(query);
@@ -87,46 +89,72 @@ export function SubscriptionsScreen() {
 
   return (
     <>
+      {/* Mobile list */}
       <div className="lg:hidden">
-        <div className="mx-auto max-w-sm px-4 pt-7">
-          <div className="flex items-center justify-between pb-6">
-            <div className="text-[22px] font-semibold tracking-[-0.05em] text-[#4a5162]">
+        <div className="mx-auto max-w-sm px-5 pt-6">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-5">
+            <div
+              className="text-[26px] font-bold tracking-[-0.8px]"
+              style={{ color: "var(--text)" }}
+            >
               Subscriptions
             </div>
             <button
               type="button"
               onClick={openCreateDialog}
-              className="flex size-12 items-center justify-center rounded-full border border-[#edf0f5] bg-white text-[#99a2b3] shadow-[0_10px_22px_-18px_rgba(15,23,42,0.16)]"
+              className="sl-tap-target flex size-11 items-center justify-center rounded-full"
+              style={{
+                background: "var(--accent)",
+                boxShadow: "0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)",
+                color: "#fff",
+              }}
             >
               <Plus className="size-5" />
             </button>
           </div>
 
-          <div className="rounded-[18px] bg-[#f3f4f7] px-4 py-3.5">
-            <div className="flex items-center justify-between text-[13px] text-[#9eabbf]">
-              <div>Total due</div>
-              <div className="font-medium text-[#8491a6]">
+          {/* Total tile */}
+          <div
+            className="mb-5 rounded-[16px] px-4 py-3.5"
+            style={{ background: "var(--surface-2)" }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[13px]" style={{ color: "var(--sub)" }}>
+                Total due
+              </span>
+              <span className="text-[14px] font-semibold" style={{ color: "var(--text)" }}>
                 {formatCurrency(totalDue, defaultCurrency)}
-              </div>
+              </span>
             </div>
           </div>
 
-          <div className="mt-6 space-y-3">
+          {/* Subscription cards */}
+          <div className="space-y-2">
             {filteredSubscriptions.map((subscription) => (
               <SwipeDeleteRow
                 key={subscription.id}
                 subscription={subscription}
                 fxRates={fxRates}
-                onEdit={() => {
-                  setSelectedId(subscription.id);
-                  openEditDialog(subscription);
-                }}
+                categories={data.categories}
+                onView={() => setDetailSheetId(subscription.id)}
                 onDelete={() => deleteSubscription(subscription.id)}
               />
             ))}
           </div>
         </div>
       </div>
+
+      {/* Mobile detail sheet */}
+      <MobileDetailSheet
+        subscriptionId={detailSheetId}
+        open={detailSheetId !== undefined}
+        onClose={() => setDetailSheetId(undefined)}
+        onEdit={() => {
+          const sub = data.subscriptions.find((s) => s.id === detailSheetId);
+          if (sub) openEditDialog(sub);
+        }}
+      />
 
       <div className="hidden gap-5 lg:grid xl:grid-cols-[minmax(0,1fr)_276px]">
         <div className="space-y-4">
@@ -270,12 +298,14 @@ export function SubscriptionsScreen() {
 function SwipeDeleteRow({
   subscription,
   fxRates,
-  onEdit,
+  categories,
+  onView,
   onDelete,
 }: {
   subscription: Subscription;
   fxRates: Record<string, number>;
-  onEdit: () => void;
+  categories: Array<{ id: string; name: string; color: string }>;
+  onView: () => void;
   onDelete: () => void;
 }) {
   const [offsetX, setOffsetX] = useState(0);
@@ -286,6 +316,10 @@ function SwipeDeleteRow({
   const containerRef = useRef<HTMLDivElement>(null);
   const REVEAL = 80;
   const isOpen = offsetX <= -(REVEAL / 2);
+
+  const category = categories.find((c) => c.id === subscription.categoryId);
+  const daysLeft = daysUntil(subscription.nextDueDate);
+  const isUrgent = daysLeft <= 7;
 
   // Close when another card opens
   useEffect(() => {
@@ -306,16 +340,11 @@ function SwipeDeleteRow({
     return () => document.removeEventListener("touchstart", handleOutside);
   }, [isOpen]);
 
-  const eurCents =
-    subscription.currency !== "EUR"
-      ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
-      : null;
-
   return (
     <>
-      <div ref={containerRef} className="relative overflow-hidden rounded-[24px]">
-        {/* Red delete zone — stays behind the card (card has z-10) */}
-        <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center rounded-r-[24px] bg-[#ef4444]">
+      <div ref={containerRef} className="relative overflow-hidden rounded-[16px]">
+        {/* Red delete zone — only visible on swipe */}
+        <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center rounded-r-[16px] bg-[#ef4444]">
           <button
             type="button"
             aria-label={`Delete ${subscription.name}`}
@@ -326,13 +355,16 @@ function SwipeDeleteRow({
           </button>
         </div>
 
-        {/* Sliding card — z-10 ensures it covers the red zone at rest */}
+        {/* Sliding card */}
         <div
-          className="relative z-10 rounded-[24px] border border-[#ebedf2] bg-white px-5 py-5 shadow-[0_14px_32px_-24px_rgba(15,23,42,0.14)]"
+          className="relative z-10 flex items-center gap-3 rounded-[16px] px-4 py-3"
           style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             transform: `translateX(${offsetX}px)`,
             transition: isDragging ? undefined : "transform 0.25s ease",
             touchAction: "pan-y",
+            minHeight: 68,
           }}
           onTouchStart={(e) => {
             startXRef.current = e.touches[0].clientX;
@@ -347,43 +379,68 @@ function SwipeDeleteRow({
             setIsDragging(false);
             if (offsetX < -(REVEAL / 2)) {
               setOffsetX(-REVEAL);
-              window.dispatchEvent(new CustomEvent("swipe-card-open", { detail: { id: subscription.id } }));
+              window.dispatchEvent(
+                new CustomEvent("swipe-card-open", { detail: { id: subscription.id } }),
+              );
             } else {
               setOffsetX(0);
             }
           }}
           onClick={() => {
             if (isOpen) { setOffsetX(0); return; }
-            onEdit();
+            onView();
           }}
         >
-          <div className="flex items-center gap-4">
-            <BrandAvatar
-              logoKey={subscription.logoKey}
-              name={subscription.name}
-              className="size-14 rounded-[16px]"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-[16px] font-semibold tracking-[-0.04em] text-[#4b5263]">
-                {subscription.name}
-              </div>
-              <div className="mt-1 text-[12px] text-[#8f9aac]">
-                {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
-                {eurCents !== null && (
-                  <span className="ml-1 text-[#b0b6c4]">
-                    · {formatCurrency(eurCents, "EUR")}
-                  </span>
-                )}
-              </div>
+          {/* App icon */}
+          <BrandAvatar
+            logoKey={subscription.logoKey}
+            name={subscription.name}
+            className="size-11 shrink-0 rounded-[10px]"
+          />
+
+          {/* Name + badge */}
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-[15px] font-semibold leading-snug"
+              style={{ color: "var(--text)" }}
+            >
+              {subscription.name}
             </div>
-            <div className="min-w-[46px] text-right">
-              <div className="flex items-center justify-end gap-1 text-[10px] text-[#b0b6c4]">
-                <RotateCcw className="size-2.5" />
-                <span>Next</span>
-              </div>
-              <div className="mt-0.5 text-[12px] font-medium text-[#8894a6]">
-                {formatDateLabel(subscription.nextDueDate)}
-              </div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="text-[11px]" style={{ color: "var(--sub)" }}>
+                {formatCurrency(subscription.amountCents, subscription.currency)} · Monthly
+              </span>
+              {category && (
+                <>
+                  <span
+                    className="size-[3px] rounded-full"
+                    style={{ background: "var(--border)" }}
+                  />
+                  <span
+                    className="rounded-[6px] px-1.5 py-px text-[11px] font-medium"
+                    style={{
+                      background: `${category.color}22`,
+                      color: category.color,
+                    }}
+                  >
+                    {category.name}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Next date */}
+          <div className="shrink-0 text-right">
+            <div className="text-[10px]" style={{ color: "var(--sub)" }}>
+              Next
+            </div>
+            <div
+              className="mt-0.5 text-[13px] font-semibold"
+              style={{ color: isUrgent ? "#f97316" : "var(--text)" }}
+            >
+              {isUrgent && "⚡ "}
+              {formatDateLabel(subscription.nextDueDate)}
             </div>
           </div>
         </div>

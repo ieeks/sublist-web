@@ -148,14 +148,25 @@ export function AppShell({
                 </div>
               </header>
 
-              <main className="px-3 pb-24 pt-3 sm:px-5 lg:px-7 lg:pb-6">{children}</main>
+              <main className="px-3 pb-28 pt-3 sm:px-5 lg:px-7 lg:pb-6">{children}</main>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-3 z-40 px-3 lg:hidden">
-        <div className="mx-auto flex max-w-[360px] items-center justify-between rounded-[22px] border border-[#edf0f5] bg-white/96 px-1.5 py-1.5 shadow-[0_18px_46px_-30px_rgba(15,23,42,0.18)] backdrop-blur-xl dark:border-[rgba(148,163,184,0.12)] dark:bg-[rgba(11,18,32,0.92)]">
+      {/* Mobile tab bar */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 lg:hidden"
+        style={{
+          background: "var(--surface)",
+          borderTop: "1px solid var(--border)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          paddingBottom: "max(20px, env(safe-area-inset-bottom))",
+          paddingTop: "10px",
+        }}
+      >
+        <div className="flex items-start justify-around">
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -163,13 +174,32 @@ export function AppShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  "flex flex-1 flex-col items-center gap-1 rounded-[14px] px-2 py-2 text-[9px] font-medium transition",
-                  active ? "text-[#5e95ff]" : "text-[#b5bcc9]",
-                )}
+                className="sl-tap-target flex flex-col items-center gap-1"
               >
-                <Icon className="size-3.5" />
-                {item.label}
+                <div
+                  className="flex items-center justify-center rounded-[14px]"
+                  style={{
+                    width: 40,
+                    height: 28,
+                    background: active
+                      ? "color-mix(in srgb, var(--accent) 20%, transparent)"
+                      : "transparent",
+                  }}
+                >
+                  <Icon
+                    className="size-[18px]"
+                    style={{ color: active ? "var(--accent)" : "var(--sub)" }}
+                  />
+                </div>
+                <span
+                  className="text-[10px]"
+                  style={{
+                    color: active ? "var(--accent)" : "var(--sub)",
+                    fontWeight: active ? 600 : 400,
+                  }}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
