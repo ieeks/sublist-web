@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { Search } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useAppData } from "@/components/providers/app-providers";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,35 +27,49 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Subscription, SubscriptionDraft } from "@/lib/types";
 
+// ── Tokens ────────────────────────────────────────────────────────────────────
+
+const DARK_T = {
+  s1: '#141927', s2: '#1b2236', s3: '#222d42',
+  border: 'rgba(255,255,255,0.07)', text: '#eef2ff',
+  sub: '#7b8799', accent: '#5b8def',
+};
+const LIGHT_T = {
+  s1: 'rgba(255,255,255,0.95)', s2: '#f3f5f9', s3: '#eaecf2',
+  border: '#e4e7ee', text: '#111827',
+  sub: '#6b7280', accent: '#4f77b8',
+};
+
+function useTokens() {
+  const { resolvedTheme } = useTheme();
+  return resolvedTheme === 'dark' ? DARK_T : LIGHT_T;
+}
+
+// ── Known services ────────────────────────────────────────────────────────────
+
 const KNOWN_SERVICES = [
-  { key: "chatgpt", label: "ChatGPT" },
-  { key: "claude", label: "Claude" },
-  { key: "netflix", label: "Netflix" },
-  { key: "icloud-plus", label: "iCloud+" },
-  { key: "perplexity", label: "Perplexity" },
-  { key: "google-ai-pro", label: "Google AI" },
-  { key: "digitalocean", label: "DigitalOcean" },
-  { key: "github-copilot", label: "Copilot" },
-  { key: "apple-tv-plus", label: "Apple TV+" },
+  { key: "chatgpt",        label: "ChatGPT"      },
+  { key: "claude",         label: "Claude"        },
+  { key: "netflix",        label: "Netflix"       },
+  { key: "icloud-plus",    label: "iCloud+"       },
+  { key: "perplexity",     label: "Perplexity"    },
+  { key: "google-ai-pro",  label: "Google AI"     },
+  { key: "digitalocean",   label: "DigitalOcean"  },
+  { key: "github-copilot", label: "Copilot"       },
+  { key: "apple-tv-plus",  label: "Apple TV+"     },
 ] as const;
+
+// ── Draft helpers ─────────────────────────────────────────────────────────────
 
 function toDraft(subscription?: Subscription): SubscriptionDraft {
   if (!subscription) {
     return {
-      name: "",
-      logoKey: "chatgpt",
-      amount: "",
-      currency: "EUR",
-      billingCycle: "monthly",
-      categoryId: "ai",
-      paymentMethodId: "apple-card",
-      rewards: "",
-      startDate: new Date().toISOString().slice(0, 10),
-      status: "active",
-      notes: "",
+      name: "", logoKey: "chatgpt", amount: "", currency: "EUR",
+      billingCycle: "monthly", categoryId: "ai", paymentMethodId: "apple-card",
+      rewards: "", startDate: new Date().toISOString().slice(0, 10),
+      status: "active", notes: "",
     };
   }
-
   return {
     id: subscription.id,
     name: subscription.name,
@@ -69,6 +86,58 @@ function toDraft(subscription?: Subscription): SubscriptionDraft {
   };
 }
 
+// ── Shared state hook ─────────────────────────────────────────────────────────
+
+function useFormState(subscription?: Subscription) {
+  const { data, addOrUpdateSubscription } = useAppData();
+  const [draft, setDraft] = useState<SubscriptionDraft>(() => toDraft(subscription));
+  const [iconSearch, setIconSearch] = useState("");
+  const [iconResults, setIconResults] = useState<
+    Array<{ slug: string; title: string; hex: string; path: string }>
+  >([]);
+
+  useEffect(() => {
+    setDraft(toDraft(subscription));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscription?.id]);
+
+  useEffect(() => {
+    if (!iconSearch.trim()) { setIconResults([]); return; }
+    let cancelled = false;
+    import("@/lib/icons").then(({ searchIcons }) => {
+      if (!cancelled) setIconResults(searchIcons(iconSearch));
+    });
+    return () => { cancelled = true; };
+  }, [iconSearch]);
+
+  function update<K extends keyof SubscriptionDraft>(key: K, value: SubscriptionDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function submit(onDone: () => void) {
+    if (!draft.name || !draft.amount) return;
+    addOrUpdateSubscription(draft);
+    onDone();
+  }
+
+  return { data, draft, update, submit, iconSearch, setIconSearch, iconResults };
+}
+
+// ── Mobile-only detect ────────────────────────────────────────────────────────
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return mobile;
+}
+
+// ── Public component ──────────────────────────────────────────────────────────
+
 export function SubscriptionFormDialog({
   open,
   onOpenChange,
@@ -78,12 +147,28 @@ export function SubscriptionFormDialog({
   onOpenChange: (open: boolean) => void;
   subscription?: Subscription;
 }) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <BottomSheet open={open} onClose={() => onOpenChange(false)}>
+        {open && (
+          <MobileFormBody
+            key={`${subscription?.id ?? 'new'}-${open}`}
+            subscription={subscription}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
+      </BottomSheet>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         {open ? (
-          <SubscriptionFormBody
-            key={`${subscription?.id ?? "new"}-${open ? "open" : "closed"}`}
+          <DesktopFormBody
+            key={`${subscription?.id ?? 'new'}-${open}`}
             onOpenChange={onOpenChange}
             subscription={subscription}
           />
@@ -93,43 +178,273 @@ export function SubscriptionFormDialog({
   );
 }
 
-function SubscriptionFormBody({
+// ── Mobile form (hi-fi style) ─────────────────────────────────────────────────
+
+function MobileFormBody({
+  subscription,
+  onClose,
+}: {
+  subscription?: Subscription;
+  onClose: () => void;
+}) {
+  const T = useTokens();
+  const { data, draft, update, submit, iconSearch, setIconSearch, iconResults } =
+    useFormState(subscription);
+
+  const isEdit = !!subscription;
+
+  return (
+    <div style={{ padding: '4px 16px 32px' }}>
+      {/* Title */}
+      <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: -0.5, marginBottom: 16 }}>
+        {isEdit ? 'Abo bearbeiten' : 'Abo hinzufügen'}
+      </div>
+
+      {/* Search */}
+      <div style={{
+        background: T.s3, border: `1px solid ${T.border}`, borderRadius: 12,
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 18,
+      }}>
+        <Search size={16} color={T.sub} />
+        <input
+          value={iconSearch}
+          onChange={(e) => {
+            setIconSearch(e.target.value);
+            if (e.target.value) update('name', e.target.value);
+          }}
+          placeholder="Service suchen…"
+          style={{
+            flex: 1, background: 'none', border: 'none', outline: 'none',
+            fontSize: 15, color: T.text,
+          }}
+        />
+      </div>
+
+      {/* Icon search results */}
+      {iconResults.length > 0 && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 18,
+        }}>
+          {iconResults.slice(0, 6).map((icon) => (
+            <button
+              key={icon.slug}
+              type="button"
+              onClick={() => {
+                update('logoKey', icon.slug);
+                update('name', icon.title);
+                setIconSearch('');
+              }}
+              style={{
+                background: T.s2, border: `1px solid ${T.border}`, borderRadius: 14,
+                padding: '12px 8px', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 7, cursor: 'pointer',
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: `#${icon.hex}1a`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg viewBox="0 0 24 24" width={22} height={22} fill={`#${icon.hex}`}>
+                  <path d={icon.path} />
+                </svg>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 500, color: T.text, textAlign: 'center' }}>
+                {icon.title}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Popular grid (shown when not searching) */}
+      {!iconSearch && (
+        <>
+          <div style={{
+            fontSize: 12, fontWeight: 600, color: T.sub,
+            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
+          }}>
+            Beliebt
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 20 }}>
+            {KNOWN_SERVICES.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => { update('logoKey', s.key); update('name', s.label); }}
+                style={{
+                  background: draft.logoKey === s.key ? `${T.accent}18` : T.s2,
+                  border: `1px solid ${draft.logoKey === s.key ? T.accent : T.border}`,
+                  borderRadius: 14, padding: '12px 8px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                  cursor: 'pointer',
+                }}
+              >
+                <BrandAvatar logoKey={s.key} name={s.label} className="size-10 rounded-[10px]" compact />
+                <span style={{ fontSize: 11, fontWeight: 500, color: T.text, textAlign: 'center' }}>
+                  {s.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Manual fields */}
+      <div style={{
+        fontSize: 12, fontWeight: 600, color: T.sub,
+        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
+      }}>
+        Manuell
+      </div>
+      <div style={{
+        background: T.s1, border: `1px solid ${T.border}`, borderRadius: 16,
+        overflow: 'hidden', marginBottom: 16,
+      }}>
+        {/* Name */}
+        <FieldRow label="Name" border>
+          <input
+            value={draft.name}
+            onChange={(e) => update('name', e.target.value)}
+            placeholder="z.B. Spotify"
+            required
+            style={{
+              background: 'none', border: 'none', outline: 'none', textAlign: 'right',
+              fontSize: 14, fontWeight: 500, color: T.accent, width: '100%',
+            }}
+          />
+        </FieldRow>
+
+        {/* Betrag */}
+        <FieldRow label="Betrag" border>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+            <input
+              value={draft.amount}
+              onChange={(e) => update('amount', e.target.value)}
+              placeholder="0,00"
+              inputMode="decimal"
+              required
+              style={{
+                background: 'none', border: 'none', outline: 'none', textAlign: 'right',
+                fontSize: 14, fontWeight: 500, color: T.accent, width: 70,
+              }}
+            />
+            <select
+              value={draft.currency}
+              onChange={(e) => update('currency', e.target.value)}
+              style={{
+                background: 'none', border: 'none', outline: 'none',
+                fontSize: 13, color: T.sub, cursor: 'pointer',
+              }}
+            >
+              {['EUR', 'USD', 'GBP', 'TRY', 'INR'].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </FieldRow>
+
+        {/* Zyklus */}
+        <FieldRow label="Zyklus" border>
+          <select
+            value={draft.billingCycle}
+            onChange={(e) => update('billingCycle', e.target.value as SubscriptionDraft['billingCycle'])}
+            style={{
+              background: 'none', border: 'none', outline: 'none', textAlign: 'right',
+              fontSize: 14, fontWeight: 500, color: T.accent, cursor: 'pointer',
+            }}
+          >
+            <option value="monthly">Monatlich</option>
+            <option value="quarterly">Quartalsweise</option>
+            <option value="yearly">Jährlich</option>
+          </select>
+        </FieldRow>
+
+        {/* Startdatum */}
+        <FieldRow label="Startdatum" border>
+          <input
+            type="date"
+            value={draft.startDate}
+            onChange={(e) => update('startDate', e.target.value)}
+            style={{
+              background: 'none', border: 'none', outline: 'none', textAlign: 'right',
+              fontSize: 14, fontWeight: 500, color: T.accent, cursor: 'pointer',
+            }}
+          />
+        </FieldRow>
+
+        {/* Kategorie */}
+        <FieldRow label="Kategorie">
+          <select
+            value={draft.categoryId}
+            onChange={(e) => update('categoryId', e.target.value)}
+            style={{
+              background: 'none', border: 'none', outline: 'none', textAlign: 'right',
+              fontSize: 14, fontWeight: 500, color: T.accent, cursor: 'pointer',
+            }}
+          >
+            {data.categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+        </FieldRow>
+      </div>
+
+      {/* Submit */}
+      <button
+        type="button"
+        onClick={() => submit(onClose)}
+        style={{
+          width: '100%', padding: 16, borderRadius: 16,
+          background: T.accent, border: 'none', cursor: 'pointer',
+          textAlign: 'center', boxShadow: `0 6px 20px ${T.accent}55`,
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>
+          {isEdit ? 'Speichern' : 'Hinzufügen'}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function FieldRow({
+  label,
+  children,
+  border,
+}: {
+  label: string;
+  children: React.ReactNode;
+  border?: boolean;
+}) {
+  const T = useTokens();
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '13px 16px',
+      borderBottom: border ? `1px solid ${T.border}` : 'none',
+    }}>
+      <span style={{ fontSize: 14, color: T.sub }}>{label}</span>
+      <div style={{ color: T.accent, fontSize: 14 }}>{children}</div>
+    </div>
+  );
+}
+
+// ── Desktop form (unchanged) ──────────────────────────────────────────────────
+
+function DesktopFormBody({
   onOpenChange,
   subscription,
 }: {
   onOpenChange: (open: boolean) => void;
   subscription?: Subscription;
 }) {
-  const { data, addOrUpdateSubscription } = useAppData();
-  const [draft, setDraft] = useState<SubscriptionDraft>(() => toDraft(subscription));
-
-  function update<K extends keyof SubscriptionDraft>(key: K, value: SubscriptionDraft[K]) {
-    setDraft((current) => ({ ...current, [key]: value }));
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!draft.name || !draft.amount) return;
-    addOrUpdateSubscription(draft);
-    onOpenChange(false);
-  }
+  const { data, draft, update, submit, iconSearch, setIconSearch, iconResults } =
+    useFormState(subscription);
 
   const isKnownKey = KNOWN_SERVICES.some((s) => s.key === draft.logoKey);
   const [customKey, setCustomKey] = useState(!isKnownKey ? draft.logoKey : "");
   const [useCustom, setUseCustom] = useState(!isKnownKey && draft.logoKey !== "");
-  const [iconSearch, setIconSearch] = useState("");
-  const [iconResults, setIconResults] = useState<
-    Array<{ slug: string; title: string; hex: string; path: string }>
-  >([]);
-
-  useEffect(() => {
-    if (!iconSearch.trim()) return;
-    let cancelled = false;
-    import("@/lib/icons").then(({ searchIcons }) => {
-      if (!cancelled) setIconResults(searchIcons(iconSearch));
-    });
-    return () => { cancelled = true; };
-  }, [iconSearch]);
 
   return (
     <>
@@ -140,7 +455,10 @@ function SubscriptionFormBody({
         </DialogDescription>
       </DialogHeader>
 
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form
+        className="space-y-5"
+        onSubmit={(e) => { e.preventDefault(); submit(() => onOpenChange(false)); }}
+      >
         {/* Service identity */}
         <div className="space-y-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#b0b6c4]">
@@ -166,7 +484,6 @@ function SubscriptionFormBody({
                   onClick={() => {
                     update("logoKey", service.key);
                     setIconSearch("");
-                    setIconResults([]);
                     setUseCustom(false);
                   }}
                   className={cn(
@@ -192,8 +509,7 @@ function SubscriptionFormBody({
               onChange={(e) => {
                 const val = e.target.value;
                 setIconSearch(val);
-                if (!val.trim()) setIconResults([]);
-                setUseCustom(false);
+                if (!val.trim()) setUseCustom(false);
               }}
               placeholder="Search service… (3 000+ icons)"
             />
@@ -207,7 +523,6 @@ function SubscriptionFormBody({
                     onClick={() => {
                       update("logoKey", icon.slug);
                       setIconSearch("");
-                      setIconResults([]);
                     }}
                     className={cn(
                       "flex flex-col items-center gap-1 rounded-[12px] border p-2 text-[10px] transition",
@@ -262,15 +577,11 @@ function SubscriptionFormBody({
             <label className="grid gap-2">
               <span className="text-sm font-medium text-[#475569]">Currency</span>
               <Select value={draft.currency} onValueChange={(value) => update("currency", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="TRY">TRY</SelectItem>
-                  <SelectItem value="INR">INR</SelectItem>
+                  {['EUR','USD','GBP','TRY','INR'].map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </label>
@@ -278,13 +589,9 @@ function SubscriptionFormBody({
               <span className="text-sm font-medium text-[#475569]">Billing cycle</span>
               <Select
                 value={draft.billingCycle}
-                onValueChange={(value) =>
-                  update("billingCycle", value as SubscriptionDraft["billingCycle"])
-                }
+                onValueChange={(value) => update("billingCycle", value as SubscriptionDraft["billingCycle"])}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="quarterly">Quarterly</SelectItem>
@@ -312,14 +619,10 @@ function SubscriptionFormBody({
             <label className="grid gap-2">
               <span className="text-sm font-medium text-[#475569]">Category</span>
               <Select value={draft.categoryId} onValueChange={(value) => update("categoryId", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {data.categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
+                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -330,9 +633,7 @@ function SubscriptionFormBody({
                 value={draft.status}
                 onValueChange={(value) => update("status", value as SubscriptionDraft["status"])}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="paused">Paused</SelectItem>
@@ -355,14 +656,10 @@ function SubscriptionFormBody({
                 value={draft.paymentMethodId}
                 onValueChange={(value) => update("paymentMethodId", value)}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {data.paymentMethods.map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      {method.name}
-                    </SelectItem>
+                    <SelectItem key={method.id} value={method.id}>{method.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
