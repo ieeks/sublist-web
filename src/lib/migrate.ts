@@ -7,19 +7,22 @@ const LS_KEY = 'sublist-web-state';
 
 /**
  * One-time migration: copies existing localStorage data into Firestore.
- * Skips if Firestore already has subscription data.
+ * Checks localStorage first — if empty, returns immediately without any
+ * network call so the onSnapshot listener can start without extra latency.
  */
 export async function migrateFromLocalStorageIfNeeded(): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  try {
-    const snap = await getDoc(REF);
-    if (snap.exists() && (snap.data() as AppData)?.subscriptions?.length > 0) return;
+  // Fast path: no localStorage data → nothing to migrate, skip network call
+  const raw = localStorage.getItem(LS_KEY);
+  if (!raw) return;
 
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return;
+  try {
     const parsed = JSON.parse(raw) as AppData;
     if (!parsed?.subscriptions?.length) return;
+
+    const snap = await getDoc(REF);
+    if (snap.exists() && (snap.data() as AppData)?.subscriptions?.length > 0) return;
 
     await setDoc(REF, parsed, { merge: true });
     localStorage.removeItem(LS_KEY);
