@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { parseISO } from "date-fns";
+import { useTheme } from "next-themes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
@@ -12,12 +13,28 @@ import { advanceDate, formatCurrency } from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const BG     = '#0c101c';
-const S1     = '#141927';
-const BORDER = '#252c3d';
-const ACCENT = '#5b8def';
-const TEXT   = '#e8eaf0';
-const SUB    = '#7a8399';
+const DARK = {
+  BG:     '#0c101c',
+  S1:     '#141927',
+  BORDER: '#252c3d',
+  ACCENT: '#5b8def',
+  TEXT:   '#e8eaf0',
+  SUB:    '#7a8399',
+};
+
+const LIGHT = {
+  BG:     'transparent',
+  S1:     'rgba(255,255,255,0.82)',
+  BORDER: '#e4e7ee',
+  ACCENT: '#4f77b8',
+  TEXT:   '#111827',
+  SUB:    '#6b7280',
+};
+
+function useTokens() {
+  const { resolvedTheme } = useTheme();
+  return resolvedTheme === 'dark' ? DARK : LIGHT;
+}
 
 // ── i18n labels ───────────────────────────────────────────────────────────────
 const WEEKDAYS   = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -79,13 +96,14 @@ function cycleLabel(sub: Subscription): string {
 }
 
 /** Returns category color or a stable fallback. */
-function subColor(sub: Subscription, categories: Array<{ id: string; color: string }>): string {
-  return categories.find((c) => c.id === sub.categoryId)?.color ?? ACCENT;
+function subColor(sub: Subscription, categories: Array<{ id: string; color: string }>, accent: string): string {
+  return categories.find((c) => c.id === sub.categoryId)?.color ?? accent;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function CalendarScreen() {
   const { data } = useAppData();
+  const { BG, S1, BORDER, ACCENT, TEXT, SUB } = useTokens();
 
   const today = new Date();
   const [year,  setYear]  = useState(today.getFullYear());
@@ -241,7 +259,7 @@ export function CalendarScreen() {
                     key={sub.id}
                     style={{
                       width: 5, height: 5, borderRadius: '50%',
-                      background: subColor(sub, data.categories),
+                      background: subColor(sub, data.categories, ACCENT),
                       flexShrink: 0,
                     }}
                   />
