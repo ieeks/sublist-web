@@ -1,193 +1,364 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  addDays,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameMonth,
-  isToday,
-  parseISO,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
+import { parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
+import { MobileDetailSheet } from "@/components/app/mobile-detail-sheet";
+import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialog";
 import { useAppData } from "@/components/providers/app-providers";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { advanceDate, formatCurrency } from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
-const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const BG     = '#0c101c';
+const S1     = '#141927';
+const BORDER = '#252c3d';
+const ACCENT = '#5b8def';
+const TEXT   = '#e8eaf0';
+const SUB    = '#7a8399';
 
-function getOccurrencesForMonth(subscription: Subscription, anchorDate: Date) {
-  const monthStart = startOfMonth(anchorDate);
-  const monthEnd = endOfMonth(anchorDate);
-  let cursor = parseISO(subscription.startDate);
-  const dates: string[] = [];
+// ── i18n labels ───────────────────────────────────────────────────────────────
+const WEEKDAYS   = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const MONTHS_DE  = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const MONTHS_SH  = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const WEEKDAY_SH = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns day-of-month numbers when a subscription renews in [year, month]. */
+function getOccurrenceDays(sub: Subscription, year: number, month: number): number[] {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd   = new Date(year, month + 1, 0);
+  let cursor = parseISO(sub.startDate);
+  const days: number[] = [];
 
   while (cursor <= monthEnd) {
     if (cursor >= monthStart) {
-      dates.push(format(cursor, "yyyy-MM-dd"));
+      days.push(cursor.getDate());
     }
-    cursor = advanceDate(cursor, subscription.billingCycle);
+    cursor = advanceDate(cursor, sub.billingCycle);
   }
-
-  return dates;
+  return days;
 }
 
+/** Builds { [dayOfMonth]: Subscription[] } for active subscriptions in a month. */
+function buildCalEvents(
+  subscriptions: Subscription[],
+  year: number,
+  month: number,
+): Record<number, Subscription[]> {
+  return subscriptions
+    .filter((s) => s.status !== 'archived')
+    .reduce<Record<number, Subscription[]>>((map, sub) => {
+      for (const day of getOccurrenceDays(sub, year, month)) {
+        map[day] = [...(map[day] ?? []), sub];
+      }
+      return map;
+    }, {});
+}
+
+/** Weekday offset so Monday = column 0. */
+function monthOffset(year: number, month: number): number {
+  const jsDay = new Date(year, month, 1).getDay(); // 0=Sun
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
+
+/** Renewal date label in German: "Mo, Apr 14" */
+function renewalLabel(year: number, month: number, day: number): string {
+  const d = new Date(year, month, day);
+  return `${WEEKDAY_SH[d.getDay()]}, ${MONTHS_SH[month]} ${day}`;
+}
+
+/** Cycle label. */
+function cycleLabel(sub: Subscription): string {
+  if (sub.billingCycle === 'monthly')   return 'Monatlich';
+  if (sub.billingCycle === 'quarterly') return 'Quartalsweise';
+  return 'Jährlich';
+}
+
+/** Returns category color or a stable fallback. */
+function subColor(sub: Subscription, categories: Array<{ id: string; color: string }>): string {
+  return categories.find((c) => c.id === sub.categoryId)?.color ?? ACCENT;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export function CalendarScreen() {
   const { data } = useAppData();
-  const [month, setMonth] = useState(new Date());
 
-  const monthStart = startOfMonth(month);
-  const monthEnd = endOfMonth(month);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const today = new Date();
+  const [year,  setYear]  = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [detailSheetId, setDetailSheetId] = useState<string | undefined>();
+  const [editingSub, setEditingSub] = useState<Subscription | undefined>();
 
-  const calendarDays = [];
-  let cursor = gridStart;
-  while (cursor <= gridEnd) {
-    calendarDays.push(cursor);
-    cursor = addDays(cursor, 1);
+  // Navigate months
+  function prevMonth() {
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else             { setMonth(m => m - 1); }
+    setSelectedDay(null);
+  }
+  function nextMonth() {
+    if (month === 11) { setYear(y => y + 1); setMonth(0); }
+    else              { setMonth(m => m + 1); }
+    setSelectedDay(null);
   }
 
-  const dueItems = useMemo(
-    () =>
-      data.subscriptions
-        .filter((subscription) => subscription.status !== "archived")
-        .flatMap((subscription) =>
-          getOccurrencesForMonth(subscription, month).map((date) => ({
-            subscription,
-            date,
-          })),
-        )
-        .sort((left, right) => left.date.localeCompare(right.date)),
-    [data.subscriptions, month],
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const offset      = monthOffset(year, month);
+
+  const calEvents = useMemo(
+    () => buildCalEvents(data.subscriptions, year, month),
+    [data.subscriptions, year, month],
   );
 
+  // Renewal list: one entry per (sub × occurrence), sorted by day
+  const renewalItems = useMemo(() => {
+    const items: Array<{ sub: Subscription; day: number }> = [];
+    for (const [dayStr, subs] of Object.entries(calEvents)) {
+      const day = Number(dayStr);
+      for (const sub of subs) {
+        items.push({ sub, day });
+      }
+    }
+    return items.sort((a, b) => a.day - b.day);
+  }, [calEvents]);
+
+  // Day panel entries
+  const dayPanelItems = selectedDay !== null ? (calEvents[selectedDay] ?? []) : [];
+
+  function handleDayTap(day: number) {
+    if ((calEvents[day] ?? []).length === 0) {
+      setSelectedDay(null);
+      return;
+    }
+    setSelectedDay(prev => (prev === day ? null : day));
+  }
+
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)]">
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>Monthly overview</CardTitle>
-            <CardDescription>
-              Renewal indicators generated from each billing cycle.
-            </CardDescription>
-          </div>
+    <div style={{ background: BG, minHeight: '100%', padding: '0 0 40px' }}>
+      {/* Month navigation */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '20px 16px 16px',
+      }}>
+        <button
+          type="button"
+          onClick={prevMonth}
+          style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: S1, border: `1px solid ${BORDER}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: TEXT,
+          }}
+        >
+          <ChevronLeft size={16} />
+        </button>
 
-          <div className="flex items-center justify-between gap-2 sm:justify-start">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="size-10 sm:size-9"
-              onClick={() => setMonth((current) => addDays(startOfMonth(current), -1))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Badge className="bg-white px-3 py-1 text-sm sm:text-xs">{format(month, "MMMM yyyy")}</Badge>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="size-10 sm:size-9"
-              onClick={() => setMonth((current) => addDays(endOfMonth(current), 1))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-3 grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-[0.14em] text-[#94a3b8] sm:mb-4 sm:gap-2 sm:text-xs sm:tracking-[0.22em]">
-            {weekdayLabels.map((label) => (
-              <div key={label}>{label}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {calendarDays.map((day) => {
-              const dayKey = format(day, "yyyy-MM-dd");
-              const items = dueItems.filter((item) => item.date === dayKey);
-              return (
-                <div
-                  key={dayKey}
-                  className={[
-                    "min-h-[88px] rounded-[16px] border p-2 transition sm:min-h-[118px] sm:rounded-[24px] sm:p-3",
-                    isSameMonth(day, month)
-                      ? "border-white/80 bg-white/82 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(15,23,42,0.55)]"
-                      : "border-white/50 bg-white/40 text-[#94a3b8] dark:border-[rgba(148,163,184,0.06)] dark:bg-[rgba(15,23,42,0.25)]",
-                    isToday(day) ? "ring-2 ring-[#5e8cff]/30" : "",
-                  ].join(" ")}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">{format(day, "d")}</div>
-                    {items.length > 0 ? (
-                      <Badge className="bg-[#eff6ff] px-2 py-0.5 text-[10px] text-[#2563eb] sm:px-2.5 sm:py-1 sm:text-xs">
-                        {items.length}
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-1 sm:mt-2">
-                    {items.slice(0, 3).map((item) => (
-                      <BrandAvatar
-                        key={`${item.subscription.id}-${item.date}`}
-                        logoKey={item.subscription.logoKey}
-                        name={item.subscription.name}
-                        className="size-5 rounded-[5px] sm:size-6 sm:rounded-[6px]"
-                        compact
-                      />
-                    ))}
-                    {items.length > 3 ? (
-                      <div className="flex size-5 items-center justify-center rounded-[5px] bg-[#f0f4ff] text-[8px] font-semibold text-[#6b7280] sm:size-6 sm:rounded-[6px] sm:text-[9px]">
-                        +{items.length - 3}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+        <span style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>
+          {MONTHS_DE[month]} {year}
+        </span>
 
-      <div className="space-y-5">
-        <Card>
-          <CardHeader>
-            <CardTitle>Renewal list</CardTitle>
-            <CardDescription>All occurrences for the selected month.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {dueItems.length === 0 ? (
-              <div className="rounded-[24px] bg-[#f8fafc] p-4 text-sm text-[#64748b]">
-                No renewals in this month.
-              </div>
-            ) : (
-              dueItems.map((item) => (
-                <div
-                  key={`${item.subscription.id}-${item.date}`}
-                  className="flex items-center gap-4 rounded-[24px] bg-[#f8fafc] p-4"
-                >
-                  <BrandAvatar
-                    logoKey={item.subscription.logoKey}
-                    name={item.subscription.name}
-                    className="size-14"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{item.subscription.name}</div>
-                    <div className="text-sm text-[#64748b]">{format(parseISO(item.date), "EEEE, MMM d")}</div>
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {formatCurrency(item.subscription.amountCents, item.subscription.currency)}
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+        <button
+          type="button"
+          onClick={nextMonth}
+          style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: S1, border: `1px solid ${BORDER}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: TEXT,
+          }}
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
+
+      {/* Weekday header */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+        padding: '0 16px', marginBottom: 6,
+      }}>
+        {WEEKDAYS.map((label) => (
+          <div key={label} style={{
+            textAlign: 'center', fontSize: 11, fontWeight: 600,
+            color: SUB, letterSpacing: '0.04em',
+          }}>
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: 4, padding: '0 16px',
+      }}>
+        {/* Leading empty cells */}
+        {Array.from({ length: offset }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+
+        {/* Day cells */}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day      = i + 1;
+          const isToday  = isCurrentMonth && day === today.getDate();
+          const subs     = calEvents[day] ?? [];
+          const isSelected = selectedDay === day;
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => handleDayTap(day)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                padding: '4px 2px 6px', borderRadius: 10,
+                background: isSelected ? `${ACCENT}22` : 'transparent',
+                border: 'none', cursor: subs.length > 0 ? 'pointer' : 'default',
+                minHeight: 52,
+              }}
+            >
+              {/* Day number */}
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: isToday ? ACCENT : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: isToday ? 700 : 400,
+                color: isToday ? '#fff' : TEXT,
+                marginBottom: 4,
+              }}>
+                {day}
+              </div>
+
+              {/* Event dots */}
+              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 24 }}>
+                {subs.slice(0, 3).map((sub) => (
+                  <div
+                    key={sub.id}
+                    style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: subColor(sub, data.categories),
+                      flexShrink: 0,
+                    }}
+                  />
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Day panel */}
+      {selectedDay !== null && dayPanelItems.length > 0 && (
+        <div style={{
+          margin: '16px 16px 0',
+          background: S1, borderRadius: 16,
+          border: `1px solid ${BORDER}`,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '12px 16px 8px',
+            fontSize: 13, fontWeight: 600, color: TEXT,
+          }}>
+            {MONTHS_DE[month]} {selectedDay}
+          </div>
+          {dayPanelItems.map((sub, idx) => (
+            <button
+              key={sub.id}
+              type="button"
+              onClick={() => setDetailSheetId(sub.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                width: '100%', padding: '10px 16px',
+                background: 'none', border: 'none',
+                borderTop: idx === 0 ? `1px solid ${BORDER}` : undefined,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <BrandAvatar
+                logoKey={sub.logoKey}
+                name={sub.name}
+                className="size-[38px] rounded-[9px] shrink-0"
+                compact
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: TEXT }}>{sub.name}</div>
+                <div style={{ fontSize: 12, color: SUB }}>{cycleLabel(sub)}</div>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, flexShrink: 0 }}>
+                {formatCurrency(sub.amountCents, sub.currency)}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Renewal list */}
+      <div style={{ padding: '24px 16px 0' }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: TEXT, marginBottom: 12 }}>
+          Verlängerungen
+        </div>
+        <div>
+          {renewalItems.length === 0 ? (
+            <div style={{ fontSize: 14, color: SUB, textAlign: 'center', padding: '24px 0' }}>
+              Keine Verlängerungen diesen Monat.
+            </div>
+          ) : (
+            renewalItems.map(({ sub, day }, idx) => (
+              <button
+                key={`${sub.id}-${day}`}
+                type="button"
+                onClick={() => setDetailSheetId(sub.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  width: '100%', padding: '11px 0',
+                  background: 'none', border: 'none',
+                  borderBottom: idx < renewalItems.length - 1 ? `1px solid ${BORDER}` : undefined,
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <BrandAvatar
+                  logoKey={sub.logoKey}
+                  name={sub.name}
+                  className="size-[38px] rounded-[9px] shrink-0"
+                  compact
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: TEXT }}>{sub.name}</div>
+                  <div style={{ fontSize: 12, color: SUB }}>{renewalLabel(year, month, day)}</div>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, flexShrink: 0 }}>
+                  {formatCurrency(sub.amountCents, sub.currency)}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Detail sheet */}
+      <MobileDetailSheet
+        subscriptionId={detailSheetId}
+        open={detailSheetId !== undefined}
+        onClose={() => setDetailSheetId(undefined)}
+        onEdit={() => {
+          const sub = data.subscriptions.find((s) => s.id === detailSheetId);
+          setEditingSub(sub);
+          setDetailSheetId(undefined);
+        }}
+      />
+
+      {/* Edit dialog */}
+      <SubscriptionFormDialog
+        open={editingSub !== undefined}
+        subscription={editingSub}
+        onOpenChange={(open) => { if (!open) setEditingSub(undefined); }}
+      />
     </div>
   );
 }
