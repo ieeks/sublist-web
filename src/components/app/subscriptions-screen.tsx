@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
+import { LoadingSpinner } from "@/components/app/loading-spinner";
 import { MobileDetailSheet } from "@/components/app/mobile-detail-sheet";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialog";
@@ -89,9 +90,7 @@ export function SubscriptionsScreen() {
     0,
   );
 
-  if (!ready) {
-    return <Card className="h-56 animate-pulse bg-white/80" />;
-  }
+  if (!ready) return <LoadingSpinner />;
 
   return (
     <>

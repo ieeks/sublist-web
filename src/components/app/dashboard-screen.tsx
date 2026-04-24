@@ -7,6 +7,7 @@ import { Sparkles } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
+import { LoadingSpinner } from "@/components/app/loading-spinner";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { useAppData } from "@/components/providers/app-providers";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,15 +88,7 @@ export function DashboardScreen() {
   const maxPayment = Math.max(...paymentBreakdown.map((item) => item.value), 1);
   const aiSpend = categoryBreakdown.find((item) => item.name === "AI")?.value ?? 0;
 
-  if (!ready) {
-    return (
-      <div className="grid gap-3 md:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Card key={index} className="h-28 animate-pulse bg-white/80" />
-        ))}
-      </div>
-    );
-  }
+  if (!ready) return <LoadingSpinner />;
 
   return (
     <>
