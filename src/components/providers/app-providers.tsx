@@ -4,13 +4,18 @@ import { ThemeProvider, useTheme } from "next-themes";
 import {
   createContext,
   startTransition,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 
 import { createSeedData } from "@/data/seed";
+import { db } from "@/lib/firebase";
+import { migrateFromLocalStorageIfNeeded } from "@/lib/migrate";
 import { FALLBACK_RATES, fetchFxRates } from "@/lib/currencies";
 import { calculateNextDueDate } from "@/lib/utils";
 import type {
@@ -23,7 +28,7 @@ import type {
   SubscriptionStatus,
 } from "@/lib/types";
 
-const STORAGE_KEY = "sublist-web-state";
+const FIRESTORE_REF = doc(db, "sublist", "data");
 
 type AppContextValue = {
   data: AppData;
@@ -102,33 +107,65 @@ function ThemeSync({ children }: { children: React.ReactNode }) {
 
 function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [fxRates, setFxRates] = useState<Record<string, number>>(FALLBACK_RATES);
+  const [data, setData] = useState<AppData>(createSeedData);
+  const [ready, setReady] = useState(false);
+
+  // Suppress Firestore writes until initial load is done
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     fetchFxRates().then(setFxRates).catch(() => {});
   }, []);
 
-  const [data, setData] = useState<AppData>(() => {
-    if (typeof window === "undefined") {
-      return createSeedData();
-    }
-
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return normalizeData(JSON.parse(saved) as AppData);
-      }
-    } catch {
-      return createSeedData();
-    }
-
-    return createSeedData();
-  });
-  const ready = true;
-
+  // One-time migration from localStorage, then subscribe to Firestore
   useEffect(() => {
-    if (!ready) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data, ready]);
+    let cancelled = false;
+
+    migrateFromLocalStorageIfNeeded().then(() => {
+      if (cancelled) return;
+
+      const unsub = onSnapshot(FIRESTORE_REF, (snap) => {
+        if (cancelled) return;
+
+        if (snap.exists()) {
+          setData(normalizeData(snap.data() as AppData));
+        } else {
+          // First ever run: seed Firestore with default data
+          const seed = createSeedData();
+          setDoc(FIRESTORE_REF, seed);
+          setData(seed);
+        }
+
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          setReady(true);
+        }
+      });
+
+      return unsub;
+    });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  // Persist every state change to Firestore (after initial load)
+  const persistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persist = useCallback((nextData: AppData) => {
+    if (!initializedRef.current) return;
+    if (persistRef.current) clearTimeout(persistRef.current);
+    persistRef.current = setTimeout(() => {
+      setDoc(FIRESTORE_REF, nextData).catch(() => {});
+    }, 600);
+  }, []);
+
+  // Mutate state + fire debounced Firestore write
+  const mutate = useCallback((updater: (current: AppData) => AppData) => {
+    setData((current) => {
+      const next = updater(current);
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -137,7 +174,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       fxRates,
       addOrUpdateSubscription: (draft) => {
         const subscription = draftToSubscription(draft);
-        setData((current) => {
+        mutate((current) => {
           const existingIndex = current.subscriptions.findIndex(
             (item) => item.id === subscription.id,
           );
@@ -155,7 +192,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         });
       },
       deleteSubscription: (subscriptionId) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           subscriptions: current.subscriptions.filter(
             (subscription) => subscription.id !== subscriptionId,
@@ -166,7 +203,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       updateSubscriptionStatus: (subscriptionId, status) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           subscriptions: current.subscriptions.map((subscription) =>
             subscription.id === subscriptionId
@@ -176,13 +213,13 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       updateSettings: (settings) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           settings: { ...current.settings, ...settings },
         }));
       },
       addCategory: (category) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           categories: [
             ...current.categories,
@@ -191,13 +228,13 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       removeCategory: (categoryId) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           categories: current.categories.filter((item) => item.id !== categoryId),
         }));
       },
       updateCategory: (categoryId, updates) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           categories: current.categories.map((cat) =>
             cat.id === categoryId ? { ...cat, ...updates } : cat,
@@ -205,7 +242,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       addPaymentMethod: (method) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           paymentMethods: [
             ...current.paymentMethods,
@@ -214,7 +251,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       removePaymentMethod: (paymentMethodId) => {
-        setData((current) => ({
+        mutate((current) => ({
           ...current,
           paymentMethods: current.paymentMethods.filter(
             (method) => method.id !== paymentMethodId,
@@ -223,7 +260,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       },
       importSubscriptions: (rows) => {
         startTransition(() => {
-          setData((current) => {
+          mutate((current) => {
             const imported = rows.map(draftToSubscription);
             const mergedCategories = [...current.categories];
             const mergedMethods = [...current.paymentMethods];
@@ -259,9 +296,13 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           });
         });
       },
-      replaceAllData: (nextData) => setData(normalizeData(nextData)),
+      replaceAllData: (nextData) => {
+        const normalized = normalizeData(nextData);
+        setData(normalized);
+        persist(normalized);
+      },
     }),
-    [data, ready, fxRates],
+    [data, ready, fxRates, mutate, persist],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
