@@ -1,26 +1,18 @@
 # TODO
 
-## Next Visual Pass
+## Offene Features
 
-- tighten desktop proportions on secondary routes to match the root mockup scene even more closely
-- reduce spacing variance between dashboard, subscriptions, calendar, and settings
-- refine mobile route layouts so they feel closer to the phone reference
+- Benachrichtigungs-Toggles (Settings) mit echten Push Notifications verbinden
+- CSV-Import: Validierung und Fehlerfeedback verbessern
+- Payment-History editierbar machen (statt nur Demo-Daten)
+- JSON-Backup/Restore als Alternative zu CSV
+- EUR-Subtext auf Dashboard-Karten (Mobile)
 
-## Product Follow-Ups
+## Deployment
 
-- add inline editing from the floating detail card
-- improve CSV import validation and field mapping
-- add optional JSON backup and restore
-- add richer payment-history editing instead of demo-generated history only
-- show EUR conversion subtext on the dashboard subscription cards (mobile + smart-launches)
-- persist FX-rate currency selection per subscription through import/export round-trip
-
-## Deployment Checks
-
-- confirm latest GitHub Pages workflow finished successfully
-- verify the live Pages build after each visual pass because `basePath` is production-only
+- Nach jedem Push auf `main` den GitHub Actions Workflow unter `ieeks/sublist-web` → Actions prüfen
+- Live-Site nach Visual-Änderungen verifizieren (basePath ist production-only)
 
 ## Dokumentation
 
 - `CLAUDE_HANDOVER.md` bei jeder größeren Änderung aktualisieren
-- sicherstellen, dass README-Abschnitt „Übergabe an Claude Code" aktuell bleibt

@@ -4,18 +4,18 @@ Dieses Dokument dient als kompakte technische Übergabe für die Weiterarbeit mi
 
 ## 1) Projektüberblick
 
-**Sublist Web** ist ein statischer, lokal-first Subscription-Tracker mit Apple-inspirierter UI und Dark-Mode-Unterstützung.
+**Sublist Web** ist ein mobile-first Subscription-Tracker mit Apple-inspirierter UI, Dark-Mode-Unterstützung und Firestore-Persistenz.
 
 - Framework: **Next.js 16** (App Router) + **TypeScript**
 - UI: **Tailwind CSS v4** + shadcn/Radix-basierte Komponenten
-- Charts: **Recharts** (Donut-Chart auf Dashboard)
 - Icons: **lucide-react**
-- Persistenz: **localStorage** (Seed-Daten beim Erststart)
-- Deployment-Ziel: **GitHub Pages** via static export (`out/`)
+- Persistenz: **Firebase Firestore** (ein Dokument: `sublist/data`)
+- Deployment: **GitHub Pages** via static export (`out/`) + GitHub Actions
 
 ## 2) Lokales Arbeiten
 
 ```bash
+cp .env.local.example .env.local   # Firebase-Werte eintragen
 npm install
 npm run dev
 ```
@@ -23,86 +23,94 @@ npm run dev
 App lokal unter: `http://localhost:3000`
 
 Wichtige Scripts:
-
 - `npm run dev` – lokale Entwicklung
-- `npm run build` – Production Build inkl. Static Export nach `out/`
-- `npm run start` – Preview des exportierten Builds
+- `npm run build` – Production Build + Static Export nach `out/`
 - `npm run lint` – ESLint
 
-## 3) Architektur (kurz)
+## 3) Architektur
 
-- `src/app/*` – Routen (`/`, `/subscriptions`, `/calendar`, `/settings`)
-- `src/components/app/*` – App-spezifische Screens und Shell
-- `src/components/ui/*` – wiederverwendbare UI-Primitives (Button, Card, Dialog, Select …)
-- `src/components/providers/app-providers.tsx` – AppContext (Daten, Actions, FX-Rates, Theme-Sync)
-- `src/data/seed.ts` – Demo-Seeddaten
-- `src/lib/currencies.ts` – FX-Rates (frankfurter.app, 24 h Cache, Fallback), `convertCurrency`, `toEurCents`
-- `src/lib/utils.ts` – `formatCurrency`, `toMonthlyAmount`, `calculateNextDueDate`, `cn`
-- `src/lib/csv.ts` – CSV-Import/Export
+```
+src/
+  app/                        Routen: /, /subscriptions, /calendar, /settings
+  components/
+    app/
+      app-shell.tsx           Sidebar (Desktop) + Tab-Bar (Mobile) + Layout
+      dashboard-screen.tsx    Dashboard mit Donut-Chart, Stat-Tiles, Upcoming
+      subscriptions-screen.tsx  Liste + Swipe-Delete + Mobile Detail Sheet
+      calendar-screen.tsx     Monatsraster + Day Panel + Verlängerungsliste
+      settings-screen.tsx     4 Gruppen: Darstellung / Kategorien / Benachrichtigungen / Daten
+      subscription-form-dialog.tsx  Mobile: BottomSheet mit Beliebt-Grid; Desktop: Dialog
+      mobile-detail-sheet.tsx BottomSheet mit Swipe-to-close (Abo-Details, Edit, Delete)
+      brand-avatar.tsx        Logo-Resolver (SVG-Map + simple-icons Fallback)
+    providers/
+      app-providers.tsx       AppContext: Daten, alle Mutations, FX-Rates, Theme-Sync
+    ui/
+      bottom-sheet.tsx        Portal-BottomSheet mit Swipe-to-close Geste
+      ...                     Button, Card, Dialog, Select, etc.
+  lib/
+    firebase.ts               Firebase App Init (aus NEXT_PUBLIC_* Env Vars)
+    migrate.ts                One-time Migration localStorage → Firestore
+    types.ts                  AppData, Subscription, Category, PaymentMethod, …
+    utils.ts                  formatCurrency, calculateNextDueDate, advanceDate, …
+    currencies.ts             FX-Rates (frankfurter.app + Fallback)
+    csv.ts                    CSV Import/Export
+  data/
+    seed.ts                   Demo-Seeddaten (wird in Firestore geschrieben wenn leer)
+```
 
 ## 4) Datenfluss & Persistenz
 
-- Daten clientseitig in `localStorage` (Key: `sublist-web-state`).
-- Seed-Daten nur beim ersten Laden.
-- FX-Rates werden beim App-Start von `frankfurter.app` geladen und für 24 h in localStorage gecacht (`fx_rates`, `fx_rates_ts`). Bei Fehler greifen hartcodierte Fallback-Rates (EUR/USD/GBP/TRY/INR).
-- `fxRates` und `updateCategory` sind über den `AppContext` verfügbar.
-- CSV-Import ersetzt die bestehende Subscription-Liste.
+- **Firestore-Dokument:** `sublist/data` enthält `AppData` (subscriptions, categories, paymentMethods, paymentHistory, settings).
+- **Startup:** `migrateFromLocalStorageIfNeeded()` prüft ob Firestore leer ist und kopiert ggf. bestehende localStorage-Daten rüber. Danach `onSnapshot` für Echtzeit-Updates.
+- **Schreiben:** Jede Mutation (addOrUpdateSubscription, deleteSubscription, updateSettings, …) ruft intern `mutate()` auf → debounced `setDoc` nach 600ms.
+- **`ready`-Flag:** `false` bis der erste Firestore-Snapshot da ist → Lade-Skeleton in SubscriptionsScreen greift.
+- **FX-Rates:** Beim App-Start von `frankfurter.app` geladen, hartcodierter Fallback bei Fehler.
+- **Kein Auth:** Firestore-Rules erlauben `read/write: if true` auf `sublist/data`.
 
 ## 5) Dark Mode
 
-- Tailwind v4 mit `@variant dark (&:where(.dark, .dark *))` in `globals.css`.
 - `next-themes` mit `attribute="class"` setzt `.dark` auf `<html>`.
 - `ThemeSync`-Komponente brückt App-State (`data.settings.appearance`) → next-themes.
-- FOUT-Prävention: Inline-Script in `<head>` (in `layout.tsx`) liest `sublist-web-state` aus localStorage und setzt die Klasse vor dem ersten Paint.
-- Dynamisch generierte Klassen (Gradients, weiße Hintergründe) werden per CSS-Override-Selektoren in `globals.css` gehandhabt; State-Varianten (`:focus`, `data-[state=...]`) direkt mit `dark:` Utilities.
+- Screens (Calendar, Settings, Form) verwenden `useTheme()` → `resolvedTheme` um inline-style Token-Sets zu wählen (DARK/LIGHT Objekte).
+- CSS-Variablen (`--bg`, `--surface`, `--accent`, `--text`, `--sub`, `--border`) sind in `globals.css` für `.dark`/`.light` gesetzt.
 
-## 6) GitHub Pages / Static Export
+## 6) Screens — Ist-Zustand
 
-Für GitHub Pages ist die App auf ein Repo mit dem Namen `sublist-web` ausgelegt.
+| Screen | Status | Besonderheiten |
+|---|---|---|
+| Dashboard | ✅ hi-fi | Donut SVG, Stat-Tiles, Upcoming-List |
+| Subscriptions | ✅ hi-fi | Filter-Pills (Alle/Monatlich/Jährlich), Swipe-Delete, MobileDetailSheet |
+| Calendar | ✅ hi-fi | Monday-first Grid, Day Panel, Verlängerungsliste, theme-aware |
+| Settings | ✅ hi-fi | 4 Gruppen, Dark-Mode Toggle, Währung, Kategorien, CSV-Daten |
+| Add/Edit Form | ✅ hi-fi | Mobile: BottomSheet (Beliebt + Grouped-Rows); Desktop: Dialog |
+| Bottom Sheet | ✅ | Swipe-to-close Geste implementiert |
 
-- `next.config.ts` nutzt `output: "export"`
-- `basePath` und `assetPrefix` wechseln in Production auf `/sublist-web`
-- Lokal läuft die App ohne Prefix (wichtig für DX)
-- `BrandAvatar` löst den Asset-Pfad intern auf – nie manuell duplizieren
+## 7) GitHub Pages / CI
 
-Wenn das Repo umbenannt wird, müssen `basePath`/`assetPrefix` angepasst werden.
+- `.github/workflows/deploy.yml` triggert auf Push nach `main`.
+- Build injiziert `NEXT_PUBLIC_FIREBASE_*` aus GitHub Repository Secrets.
+- `next.config.ts`: `output: "export"`, `basePath: "/sublist-web"` (nur Production).
+- `BrandAvatar` löst Asset-Pfad intern auf — nie manuell duplizieren.
 
-## 7) Implementierte Features (Stand aktuell)
+## 8) Offene Themen
 
-- Dark Mode (class-based, FOUT-frei)
-- Bottom-Tab-Bar & Sidebar: aktiver State korrekt via `pathname`
-- Dashboard: Donut-Chart, MetricCards, BreakdownCards – alle Totals FX-konvertiert
-- Subscriptions: Desktop-Listenansicht + Detailpanel, Mobile-Swipe-to-Delete (Touch-Gesten, Bestätigungs-Dialog)
-- Calendar: Tagesansicht mit Brand-Icons (bis 3 + `+N`-Overflow)
-- Settings:
-  - Präferenzen: Default-Currency (EUR/USD/GBP/TRY/INR), Appearance
-  - Kategorien: Inline-Umbenennen per Klick, Löschen (nur wenn unverknüpft)
-  - Zahlungsmethoden: Hinzufügen, Löschen (nur wenn unverknüpft)
-  - CSV Export (Subscriptions + Payment History) und Import
-- Subscription-Formular: Icon-Picker-Grid (9 Known Services + Custom), Felder gruppiert, Currency als Select (EUR/USD/GBP/TRY/INR)
-- Mehrwährungsanzeige: EUR-Subtext bei Nicht-EUR-Subscriptions in Listen und Detailansicht
-
-## 8) Offene Themen (priorisiert)
-
-1. Inline-Editing direkt aus der Detailkarte
-2. CSV-Import robuster machen (Validierung, Mapping, Fehlerfeedback)
-3. Optionales JSON-Backup/Restore
-4. Payment-History editierbar machen (statt nur Demo-Generierung)
-5. EUR-Subtext auch auf Dashboard-Karten (Mobile + Smart-Launches)
+1. Benachrichtigungs-Toggles in Settings sind nur lokaler State — noch keine echte Push-Notification-Logik
+2. CSV-Import robuster machen (Validierung, Fehlerfeedback)
+3. Payment-History editierbar machen (statt nur Demo-Daten)
+4. JSON-Backup/Restore als Alternative zu CSV
+5. EUR-Subtext auf Dashboard-Karten (Mobile)
 
 ## 9) Done-Definition für Änderungen
 
-Bei jeder Änderung sollten mindestens erfüllt sein:
+- `npm run build` ohne Fehler
+- `npx tsc --noEmit` ohne Fehler
+- Betroffene Flows manuell auf Mobile (375px) und Desktop geprüft
+- Markdown-Docs synchron gehalten
 
-- Build läuft (`npm run build`)
-- Lint läuft (`npm run lint`)
-- Betroffene User-Flows manuell geprüft
-- Dokumentation (`README.md`, `TODO.md`, diese Übergabe) bei Bedarf synchronisiert
+## 10) Wichtige Hinweise
 
-## 10) Wichtige Hinweise für sichere Weiterentwicklung
-
-- Keine Serverabhängigkeit voraussetzen (App ist bewusst lokal-first).
-- Bei neuen Features statischen Export (GitHub Pages) immer mitdenken.
+- **Keine neue Context-Ebene** einführen — alles läuft über `useAppData()`.
+- **`setData` nie direkt** in neuen Mutations verwenden — immer über `mutate()` damit Firestore-Sync greift.
+- **Tailwind v4:** kein `tailwind.config.ts`, Konfiguration liegt in `globals.css`.
 - Bei Route-/Asset-Änderungen `basePath`-Kompatibilität nicht brechen.
-- Tailwind v4: kein `tailwind.config.ts`, Konfiguration liegt in `globals.css`.
-- Neue dynamisch generierte Klassen mit Farb-Hex-Werten brauchen ggf. CSS-Override-Selektoren in `globals.css` für Dark Mode.
+- `.env.local` ist in `.gitignore` — niemals committen.
