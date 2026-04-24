@@ -39,6 +39,7 @@ export function SubscriptionsScreen() {
   const [selectedId, setSelectedId] = useState<string | undefined>(data.subscriptions[0]?.id);
   const [detailSheetId, setDetailSheetId] = useState<string | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [cycleFilter, setCycleFilter] = useState<'Alle' | 'Monatlich' | 'Jährlich'>('Alle');
   const [editingSubscription, setEditingSubscription] = useState<Subscription | undefined>();
   const deferredQuery = useDeferredValue(query);
   const selectedFromQuery = searchParams.get("subscription") ?? undefined;
@@ -56,8 +57,13 @@ export function SubscriptionsScreen() {
         .filter((subscription) =>
           subscription.name.toLowerCase().includes(deferredQuery.toLowerCase()),
         )
+        .filter((subscription) => {
+          if (cycleFilter === 'Monatlich') return subscription.billingCycle === 'monthly';
+          if (cycleFilter === 'Jährlich')  return subscription.billingCycle === 'yearly';
+          return true;
+        })
         .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate)),
-    [categoryFilter, data.subscriptions, deferredQuery, paymentFilter],
+    [categoryFilter, cycleFilter, data.subscriptions, deferredQuery, paymentFilter],
   );
 
   const effectiveSelectedId = filteredSubscriptions.find((item) => item.id === selectedFromQuery)
@@ -91,46 +97,59 @@ export function SubscriptionsScreen() {
     <>
       {/* Mobile list */}
       <div className="lg:hidden">
-        <div className="mx-auto max-w-sm px-5 pt-6">
+        <div className="mx-auto max-w-sm px-5 pt-4">
           {/* Header */}
-          <div className="flex items-center justify-between pb-5">
-            <div
-              className="text-[26px] font-bold tracking-[-0.8px]"
-              style={{ color: "var(--text)" }}
-            >
-              Subscriptions
+          <div className="flex items-end justify-between pb-1">
+            <div>
+              <div
+                className="text-[26px] font-bold tracking-[-0.8px]"
+                style={{ color: "var(--text)" }}
+              >
+                Abonnements
+              </div>
+              <div className="text-[13px] mt-0.5" style={{ color: "var(--sub)" }}>
+                Gesamt:{" "}
+                <span className="font-semibold" style={{ color: "var(--text)" }}>
+                  {formatCurrency(totalDue, defaultCurrency)} / mo
+                </span>
+              </div>
             </div>
             <button
               type="button"
               onClick={openCreateDialog}
-              className="sl-tap-target flex size-11 items-center justify-center rounded-full"
+              className="sl-tap-target flex size-9 items-center justify-center rounded-[12px]"
               style={{
                 background: "var(--accent)",
-                boxShadow: "0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)",
+                boxShadow: "0 4px 14px color-mix(in srgb, var(--accent) 33%, transparent)",
                 color: "#fff",
               }}
             >
-              <Plus className="size-5" />
+              <Plus className="size-[18px]" />
             </button>
           </div>
 
-          {/* Total tile */}
-          <div
-            className="mb-5 rounded-[16px] px-4 py-3.5"
-            style={{ background: "var(--surface-2)" }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[13px]" style={{ color: "var(--sub)" }}>
-                Total due
-              </span>
-              <span className="text-[14px] font-semibold" style={{ color: "var(--text)" }}>
-                {formatCurrency(totalDue, defaultCurrency)}
-              </span>
-            </div>
+          {/* Filter pills */}
+          <div className="flex gap-1.5 pt-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {(['Alle', 'Monatlich', 'Jährlich'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setCycleFilter(f)}
+                className="sl-tap-target shrink-0 px-3.5 py-1.5 rounded-[20px] text-[13px] transition-all"
+                style={{
+                  background: cycleFilter === f ? "var(--accent)" : "var(--surface-2)",
+                  border: `1px solid ${cycleFilter === f ? "var(--accent)" : "var(--border)"}`,
+                  fontWeight: cycleFilter === f ? 600 : 400,
+                  color: cycleFilter === f ? "#fff" : "var(--sub)",
+                }}
+              >
+                {f}
+              </button>
+            ))}
           </div>
 
           {/* Subscription cards */}
-          <div className="space-y-2">
+          <div className="space-y-2 pt-3">
             {filteredSubscriptions.map((subscription) => (
               <SwipeDeleteRow
                 key={subscription.id}
@@ -408,7 +427,8 @@ function SwipeDeleteRow({
             </div>
             <div className="mt-1 flex items-center gap-1.5">
               <span className="text-[11px]" style={{ color: "var(--sub)" }}>
-                {formatCurrency(subscription.amountCents, subscription.currency)} · Monthly
+                {formatCurrency(subscription.amountCents, subscription.currency)} ·{" "}
+                {subscription.billingCycle === "monthly" ? "Monatlich" : subscription.billingCycle === "quarterly" ? "Quartalsweise" : "Jährlich"}
               </span>
               {category && (
                 <>
@@ -433,7 +453,7 @@ function SwipeDeleteRow({
           {/* Next date */}
           <div className="shrink-0 text-right">
             <div className="text-[10px]" style={{ color: "var(--sub)" }}>
-              Next
+              Nächste
             </div>
             <div
               className="mt-0.5 text-[13px] font-semibold"
