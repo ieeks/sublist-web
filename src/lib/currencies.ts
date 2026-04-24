@@ -1,7 +1,6 @@
 export const FALLBACK_RATES: Record<string, number> = {
   EUR: 1,
   USD: 1.0852,
-  GBP: 0.8612,
   TRY: 52.9272,
   INR: 109.5025,
 };
@@ -18,9 +17,7 @@ export async function fetchFxRates(): Promise<Record<string, number>> {
     if (ts && cached && Date.now() - Number(ts) < TTL_MS) {
       return JSON.parse(cached) as Record<string, number>;
     }
-    const resp = await fetch(
-      "https://api.frankfurter.app/latest?from=EUR&to=USD,GBP,TRY,INR",
-    );
+    const resp = await fetch("https://open.er-api.com/v6/latest/EUR");
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = (await resp.json()) as { rates: Record<string, number> };
     const rates: Record<string, number> = { EUR: 1, ...json.rates };

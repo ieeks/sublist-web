@@ -337,7 +337,7 @@ function MobileFormBody({
                 fontSize: 13, color: T.sub, cursor: 'pointer',
               }}
             >
-              {['EUR', 'USD', 'GBP', 'TRY', 'INR'].map((c) => (
+              {['EUR', 'USD', 'TRY', 'INR'].map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -579,7 +579,7 @@ function DesktopFormBody({
               <Select value={draft.currency} onValueChange={(value) => update("currency", value)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['EUR','USD','GBP','TRY','INR'].map((c) => (
+                  {['EUR','USD','TRY','INR'].map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>

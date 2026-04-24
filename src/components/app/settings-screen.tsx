@@ -196,7 +196,7 @@ export function SettingsScreen() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {['EUR', 'USD', 'GBP', 'TRY', 'INR'].map((c) => (
+                {['EUR', 'USD', 'TRY', 'INR'].map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>
