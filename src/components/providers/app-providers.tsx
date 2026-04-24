@@ -120,11 +120,12 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   // One-time migration from localStorage, then subscribe to Firestore
   useEffect(() => {
     let cancelled = false;
+    let unsub: (() => void) | undefined;
 
     migrateFromLocalStorageIfNeeded().then(() => {
       if (cancelled) return;
 
-      const unsub = onSnapshot(FIRESTORE_REF, (snap) => {
+      unsub = onSnapshot(FIRESTORE_REF, (snap) => {
         if (cancelled) return;
 
         if (snap.exists()) {
@@ -141,24 +142,21 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           setReady(true);
         }
       });
-
-      return unsub;
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
-  // Persist every state change to Firestore (after initial load)
-  const persistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Persist state change to Firestore (after initial load)
   const persist = useCallback((nextData: AppData) => {
     if (!initializedRef.current) return;
-    if (persistRef.current) clearTimeout(persistRef.current);
-    persistRef.current = setTimeout(() => {
-      setDoc(FIRESTORE_REF, nextData).catch(() => {});
-    }, 600);
+    setDoc(FIRESTORE_REF, nextData).catch(() => {});
   }, []);
 
-  // Mutate state + fire debounced Firestore write
+  // Mutate state + fire immediate Firestore write
   const mutate = useCallback((updater: (current: AppData) => AppData) => {
     setData((current) => {
       const next = updater(current);

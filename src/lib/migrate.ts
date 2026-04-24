@@ -22,6 +22,7 @@ export async function migrateFromLocalStorageIfNeeded(): Promise<void> {
     if (!parsed?.subscriptions?.length) return;
 
     await setDoc(REF, parsed, { merge: true });
+    localStorage.removeItem(LS_KEY);
     console.log('[Sublist] Migrated localStorage → Firestore');
   } catch (e) {
     console.warn('[Sublist] Migration skipped:', e);
