@@ -75,7 +75,7 @@ service cloud.firestore {
 
 - All app state lives in one Firestore document: `sublist/data`.
 - On first load, existing `localStorage` data is migrated to Firestore automatically.
-- FX rates are fetched from `frankfurter.app` with hardcoded fallback if offline.
+- FX rates are fetched from `open.er-api.com` (CORS-safe, no API key) with hardcoded fallback if offline. Supported currencies: EUR, USD, TRY, INR.
 - CSV export/import available in Settings.
 
 ## Übergabe an Claude Code

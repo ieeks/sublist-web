@@ -52,7 +52,7 @@ src/
     migrate.ts                One-time Migration localStorage → Firestore
     types.ts                  AppData, Subscription, Category, PaymentMethod, …
     utils.ts                  formatCurrency, calculateNextDueDate, advanceDate, …
-    currencies.ts             FX-Rates (frankfurter.app + Fallback)
+    currencies.ts             FX-Rates (open.er-api.com + Fallback), EUR/USD/TRY/INR
     csv.ts                    CSV Import/Export
   data/
     seed.ts                   Demo-Seeddaten (wird in Firestore geschrieben wenn leer)
@@ -64,7 +64,7 @@ src/
 - **Startup:** `migrateFromLocalStorageIfNeeded()` prüft ob Firestore leer ist und kopiert ggf. bestehende localStorage-Daten rüber. Danach `onSnapshot` für Echtzeit-Updates.
 - **Schreiben:** Jede Mutation (addOrUpdateSubscription, deleteSubscription, updateSettings, …) ruft intern `mutate()` auf → debounced `setDoc` nach 600ms.
 - **`ready`-Flag:** `false` bis der erste Firestore-Snapshot da ist → Lade-Skeleton in SubscriptionsScreen greift.
-- **FX-Rates:** Beim App-Start von `frankfurter.app` geladen, hartcodierter Fallback bei Fehler.
+- **FX-Rates:** Beim App-Start von `open.er-api.com/v6/latest/EUR` geladen (CORS-kompatibel), hartcodierter Fallback bei Fehler. Unterstützte Währungen: EUR, USD, TRY, INR.
 - **Kein Auth:** Firestore-Rules erlauben `read/write: if true` auf `sublist/data`.
 
 ## 5) Dark Mode
