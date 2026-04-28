@@ -17,6 +17,8 @@ const logoMap: Record<string, string> = {
   digitalocean: `${assetBase}/assets/logos/digitalocean.svg`,
   "github-copilot": `${assetBase}/assets/logos/github-copilot.svg`,
   "apple-tv-plus": `${assetBase}/assets/logos/apple-tv-plus.svg`,
+  "disney-plus": `${assetBase}/assets/logos/disney-plus.svg`,
+  "amazon-prime": `${assetBase}/assets/logos/amazon-prime.svg`,
 };
 
 // Maps user-friendly keys to their actual Simple Icons slugs
