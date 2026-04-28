@@ -36,7 +36,8 @@ export function BrandAvatar({
   useEffect(() => {
     if (source || !logoKey) return;
     import("@/lib/icons").then(({ getIconBySlug }) => {
-      const icon = getIconBySlug(logoKey);
+      // Try the slug as-is, then without hyphens (e.g. "disney-plus" → "disneyplus")
+      const icon = getIconBySlug(logoKey) ?? getIconBySlug(logoKey.replace(/-/g, ""));
       setSimpleIcon(icon ? { hex: icon.hex, path: icon.path } : null);
     });
   }, [logoKey, source]);
@@ -54,7 +55,7 @@ export function BrandAvatar({
           alt={`${name} logo`}
           fill
           sizes="96px"
-          className={cn("object-contain", compact ? "p-1" : "p-3")}
+          className="object-contain"
         />
       </div>
     );
