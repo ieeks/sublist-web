@@ -19,7 +19,24 @@ const logoMap: Record<string, string> = {
   "apple-tv-plus": `${assetBase}/assets/logos/apple-tv-plus.svg`,
 };
 
-export function BrandAvatar({
+// Maps user-friendly keys to their actual Simple Icons slugs
+const SLUG_ALIASES: Record<string, string> = {
+  "amazon-prime":       "amazonprimevideo",
+  "amazon-prime-video": "amazonprimevideo",
+  "amazonprime":        "amazonprimevideo",
+  "disney-plus":        "disneyplus",
+  "disney+":            "disneyplus",
+  "youtube-music":      "youtubemusic",
+  "google-drive":       "googledrive",
+  "google-one":         "googleone",
+  "microsoft-365":      "microsoft365",
+  "apple-music":        "applemusic",
+  "apple-arcade":       "applearcade",
+};
+
+function resolveSlug(logoKey: string): string {
+  return SLUG_ALIASES[logoKey] ?? SLUG_ALIASES[logoKey.replace(/-/g, "")] ?? logoKey.replace(/-/g, "") ?? logoKey;
+}
   logoKey,
   name,
   className,
@@ -36,8 +53,7 @@ export function BrandAvatar({
   useEffect(() => {
     if (source || !logoKey) return;
     import("@/lib/icons").then(({ getIconBySlug }) => {
-      // Try the slug as-is, then without hyphens (e.g. "disney-plus" → "disneyplus")
-      const icon = getIconBySlug(logoKey) ?? getIconBySlug(logoKey.replace(/-/g, ""));
+      const icon = getIconBySlug(logoKey) ?? getIconBySlug(resolveSlug(logoKey));
       setSimpleIcon(icon ? { hex: icon.hex, path: icon.path } : null);
     });
   }, [logoKey, source]);
