@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -178,13 +179,13 @@ export function DashboardScreen() {
             <div className="text-[16px] font-semibold" style={{ color: "var(--text)" }}>
               Upcoming
             </div>
-            <a
+            <Link
               href="/subscriptions"
               className="text-[13px] font-medium"
               style={{ color: "var(--accent)" }}
             >
               See all →
-            </a>
+            </Link>
           </div>
           <div
             className="rounded-[16px] overflow-hidden"
