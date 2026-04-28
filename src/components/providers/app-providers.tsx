@@ -117,47 +117,46 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     fetchFxRates().then(setFxRates).catch(() => {});
   }, []);
 
-  // One-time migration from localStorage, then subscribe to Firestore
+  // Subscribe to Firestore immediately; run migration in parallel
   useEffect(() => {
     let cancelled = false;
-    let unsub: (() => void) | undefined;
 
-    migrateFromLocalStorageIfNeeded().then(() => {
-      if (cancelled) return;
+    // Start Firestore immediately — don't wait for migration
+    const unsub = onSnapshot(
+      FIRESTORE_REF,
+      (snap) => {
+        if (cancelled) return;
 
-      unsub = onSnapshot(
-        FIRESTORE_REF,
-        (snap) => {
-          if (cancelled) return;
+        if (snap.exists()) {
+          setData(normalizeData(snap.data() as AppData));
+        } else {
+          // First ever run: seed Firestore with default data
+          const seed = createSeedData();
+          setDoc(FIRESTORE_REF, seed);
+          setData(seed);
+        }
 
-          if (snap.exists()) {
-            setData(normalizeData(snap.data() as AppData));
-          } else {
-            // First ever run: seed Firestore with default data
-            const seed = createSeedData();
-            setDoc(FIRESTORE_REF, seed);
-            setData(seed);
-          }
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          setReady(true);
+        }
+      },
+      (error) => {
+        console.error("[Sublist] Firestore snapshot error:", error);
+        // Unblock the UI so the app doesn't hang forever on a Firestore error
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          setReady(true);
+        }
+      },
+    );
 
-          if (!initializedRef.current) {
-            initializedRef.current = true;
-            setReady(true);
-          }
-        },
-        (error) => {
-          console.error("[Sublist] Firestore snapshot error:", error);
-          // Unblock the UI so the app doesn't hang forever on a Firestore error
-          if (!initializedRef.current) {
-            initializedRef.current = true;
-            setReady(true);
-          }
-        },
-      );
-    });
+    // Migration runs in parallel, fire-and-forget
+    migrateFromLocalStorageIfNeeded().catch(() => {});
 
     return () => {
       cancelled = true;
-      unsub?.();
+      unsub();
     };
   }, []);
 
