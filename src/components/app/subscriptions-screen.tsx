@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { convertCurrency, toEurCents } from "@/lib/currencies";
-import { daysUntil, formatCurrency } from "@/lib/utils";
+import { daysUntil, formatCurrency, toMonthlyAmount } from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
 export function SubscriptionsScreen() {
@@ -86,7 +86,7 @@ export function SubscriptionsScreen() {
   const defaultCurrency = data.settings.defaultCurrency;
 
   const totalDue = filteredSubscriptions.reduce(
-    (sum, sub) => sum + convertCurrency(sub.amountCents, sub.currency, defaultCurrency, fxRates),
+    (sum, sub) => sum + convertCurrency(toMonthlyAmount(sub.amountCents, sub.billingCycle), sub.currency, defaultCurrency, fxRates),
     0,
   );
 
