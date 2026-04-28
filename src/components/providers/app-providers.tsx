@@ -13,7 +13,7 @@ import {
 } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 
-import { createSeedData } from "@/data/seed";
+import { emptyAppData } from "@/data/seed";
 import { db } from "@/lib/firebase";
 import { migrateFromLocalStorageIfNeeded } from "@/lib/migrate";
 import { FALLBACK_RATES, fetchFxRates } from "@/lib/currencies";
@@ -107,7 +107,7 @@ function ThemeSync({ children }: { children: React.ReactNode }) {
 
 function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [fxRates, setFxRates] = useState<Record<string, number>>(FALLBACK_RATES);
-  const [data, setData] = useState<AppData>(createSeedData);
+  const [data, setData] = useState<AppData>(emptyAppData);
   const [ready, setReady] = useState(false);
 
   // Suppress Firestore writes until initial load is done
@@ -130,10 +130,10 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (snap.exists()) {
           setData(normalizeData(snap.data() as AppData));
         } else {
-          // First ever run: seed Firestore with default data
-          const seed = createSeedData();
-          setDoc(FIRESTORE_REF, seed);
-          setData(seed);
+          // First ever run: write empty data to Firestore
+          const empty = emptyAppData();
+          setDoc(FIRESTORE_REF, empty);
+          setData(empty);
         }
 
         if (!initializedRef.current) {

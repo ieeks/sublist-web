@@ -175,6 +175,16 @@ const subscriptionSeeds = [
   },
 ];
 
+export function emptyAppData(): AppData {
+  return {
+    categories: [],
+    paymentMethods: [],
+    subscriptions: [],
+    paymentHistory: [],
+    settings: { defaultCurrency: "EUR", appearance: "light" },
+  };
+}
+
 export function createSeedData(): AppData {
   const subscriptions: Subscription[] = subscriptionSeeds.map((subscription) => ({
     ...subscription,
