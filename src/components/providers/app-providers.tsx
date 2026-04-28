@@ -121,33 +121,36 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    // Start Firestore immediately — don't wait for migration
+    const unblock = () => {
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        setReady(true);
+      }
+    };
+
+    // Safety net: unblock the UI after 8 s if Firestore hasn't responded
+    const timeout = setTimeout(unblock, 8000);
+
     const unsub = onSnapshot(
       FIRESTORE_REF,
       (snap) => {
         if (cancelled) return;
+        clearTimeout(timeout);
 
         if (snap.exists()) {
           setData(normalizeData(snap.data() as AppData));
         } else {
-          // First ever run: write empty data to Firestore
           const empty = emptyAppData();
           setDoc(FIRESTORE_REF, empty);
           setData(empty);
         }
 
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          setReady(true);
-        }
+        unblock();
       },
       (error) => {
         console.error("[Sublist] Firestore snapshot error:", error);
-        // Unblock the UI so the app doesn't hang forever on a Firestore error
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          setReady(true);
-        }
+        clearTimeout(timeout);
+        unblock();
       },
     );
 
@@ -156,6 +159,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
       unsub();
     };
   }, []);
