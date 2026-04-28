@@ -338,6 +338,10 @@ function SwipeDeleteRow({
   const category = categories.find((c) => c.id === subscription.categoryId);
   const daysLeft = daysUntil(subscription.nextDueDate);
   const isUrgent = daysLeft <= 7;
+  const eurCents =
+    subscription.currency !== "EUR"
+      ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
+      : null;
 
   // Close when another card opens
   useEffect(() => {
@@ -428,6 +432,11 @@ function SwipeDeleteRow({
               <span className="text-[11px]" style={{ color: "var(--sub)" }}>
                 {formatCurrency(subscription.amountCents, subscription.currency)} ·{" "}
                 {subscription.billingCycle === "monthly" ? "Monatlich" : subscription.billingCycle === "quarterly" ? "Quartalsweise" : "Jährlich"}
+                {eurCents !== null && (
+                  <span className="ml-1" style={{ opacity: 0.7 }}>
+                    · {formatCurrency(eurCents, "EUR")}
+                  </span>
+                )}
               </span>
               {category && (
                 <>

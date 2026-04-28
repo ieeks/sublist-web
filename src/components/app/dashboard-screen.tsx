@@ -12,7 +12,7 @@ import { LoadingSpinner } from "@/components/app/loading-spinner";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
 import { useAppData } from "@/components/providers/app-providers";
 import { Card, CardContent } from "@/components/ui/card";
-import { convertCurrency } from "@/lib/currencies";
+import { convertCurrency, toEurCents } from "@/lib/currencies";
 import { daysUntil, formatCurrency, toMonthlyAmount } from "@/lib/utils";
 
 export function DashboardScreen() {
@@ -194,6 +194,10 @@ export function DashboardScreen() {
             {launches.slice(0, 4).map((subscription, index) => {
               const daysLeft = daysUntil(subscription.nextDueDate);
               const isUrgent = daysLeft <= 7;
+              const eurCents =
+                subscription.currency !== defaultCurrency
+                  ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
+                  : null;
               return (
                 <button
                   type="button"
@@ -221,6 +225,11 @@ export function DashboardScreen() {
                     </div>
                     <div className="text-[12px]" style={{ color: "var(--sub)" }}>
                       {formatCurrency(subscription.amountCents, subscription.currency)}
+                      {eurCents !== null && (
+                        <span className="ml-1" style={{ color: "var(--sub)", opacity: 0.7 }}>
+                          · {formatCurrency(eurCents, "EUR")}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
