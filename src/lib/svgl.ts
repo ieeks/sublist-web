@@ -74,9 +74,6 @@ export async function getSvglByName(name: string): Promise<ResolvedSvglIcon | nu
   if (!name) return null;
   const all = await fetchAll();
   const slug = toSlug(name);
-  return (
-    all.find((icon) => icon.slug === slug) ??
-    all.find((icon) => icon.slug.startsWith(slug) || slug.startsWith(icon.slug)) ??
-    null
-  );
+  // Only exact slug match — partial matching causes too many false positives
+  return all.find((icon) => icon.slug === slug) ?? null;
 }

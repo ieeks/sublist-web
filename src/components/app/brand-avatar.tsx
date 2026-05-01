@@ -12,13 +12,21 @@ const logoMap: Record<string, string> = {
   claude: `${assetBase}/assets/logos/claude.svg`,
   netflix: `${assetBase}/assets/logos/netflix.svg`,
   "icloud-plus": `${assetBase}/assets/logos/icloud-plus.svg`,
+  icloud: `${assetBase}/assets/logos/icloud-plus.svg`,
   perplexity: `${assetBase}/assets/logos/perplexity.svg`,
   "google-ai-pro": `${assetBase}/assets/logos/google-ai-pro.svg`,
   digitalocean: `${assetBase}/assets/logos/digitalocean.svg`,
   "github-copilot": `${assetBase}/assets/logos/github-copilot.svg`,
+  githubcopilot: `${assetBase}/assets/logos/github-copilot.svg`,
   "apple-tv-plus": `${assetBase}/assets/logos/apple-tv-plus.svg`,
+  appletvplus: `${assetBase}/assets/logos/apple-tv-plus.svg`,
   "disney-plus": `${assetBase}/assets/logos/disney-plus.svg`,
+  disneyplus: `${assetBase}/assets/logos/disney-plus.svg`,
+  "disney+": `${assetBase}/assets/logos/disney-plus.svg`,
   "amazon-prime": `${assetBase}/assets/logos/amazon-prime.svg`,
+  amazonprime: `${assetBase}/assets/logos/amazon-prime.svg`,
+  amazonprimevideo: `${assetBase}/assets/logos/amazon-prime.svg`,
+  "amazon-prime-video": `${assetBase}/assets/logos/amazon-prime.svg`,
 };
 
 const SLUG_ALIASES: Record<string, string> = {
