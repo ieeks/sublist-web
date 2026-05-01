@@ -93,7 +93,7 @@ function useFormState(subscription?: Subscription) {
   const [draft, setDraft] = useState<SubscriptionDraft>(() => toDraft(subscription));
   const [iconSearch, setIconSearch] = useState("");
   const [iconResults, setIconResults] = useState<
-    Array<{ slug: string; title: string; hex: string; path: string }>
+    Array<{ slug: string; title: string; hex: string; path: string; svglRoute?: string }>
   >([]);
 
   useEffect(() => {
@@ -104,8 +104,17 @@ function useFormState(subscription?: Subscription) {
   useEffect(() => {
     if (!iconSearch.trim()) { setIconResults([]); return; }
     let cancelled = false;
-    import("@/lib/icons").then(({ searchIcons }) => {
-      if (!cancelled) setIconResults(searchIcons(iconSearch));
+    Promise.all([
+      import("@/lib/svgl").then(({ searchSvgl }) => searchSvgl(iconSearch)),
+      import("@/lib/icons").then(({ searchIcons }) => searchIcons(iconSearch)),
+    ]).then(([svglResults, simpleResults]) => {
+      if (cancelled) return;
+      const svglSlugs = new Set(svglResults.map((r) => r.slug));
+      const merged = [
+        ...svglResults.map((r) => ({ slug: r.slug, title: r.title, hex: "", path: "", svglRoute: r.route })),
+        ...simpleResults.filter((r) => !svglSlugs.has(r.slug)).slice(0, 24 - svglResults.length),
+      ];
+      setIconResults(merged.slice(0, 24));
     });
     return () => { cancelled = true; };
   }, [iconSearch]);
@@ -242,12 +251,18 @@ function MobileFormBody({
             >
               <div style={{
                 width: 40, height: 40, borderRadius: 10,
-                background: `#${icon.hex}1a`,
+                background: icon.svglRoute ? '#f5f5f5' : `#${icon.hex}1a`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden',
               }}>
-                <svg viewBox="0 0 24 24" width={22} height={22} fill={`#${icon.hex}`}>
-                  <path d={icon.path} />
-                </svg>
+                {icon.svglRoute ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={icon.svglRoute} alt={icon.title} style={{ width: 26, height: 26, objectFit: 'contain' }} />
+                ) : (
+                  <svg viewBox="0 0 24 24" width={22} height={22} fill={`#${icon.hex}`}>
+                    <path d={icon.path} />
+                  </svg>
+                )}
               </div>
               <span style={{ fontSize: 11, fontWeight: 500, color: T.text, textAlign: 'center' }}>
                 {icon.title}
@@ -532,12 +547,17 @@ function DesktopFormBody({
                     )}
                   >
                     <div
-                      className="flex size-8 items-center justify-center rounded-[8px]"
-                      style={{ backgroundColor: `#${icon.hex}1a` }}
+                      className="flex size-8 items-center justify-center overflow-hidden rounded-[8px]"
+                      style={{ backgroundColor: icon.svglRoute ? '#f5f5f5' : `#${icon.hex}1a` }}
                     >
-                      <svg viewBox="0 0 24 24" className="size-5" fill={`#${icon.hex}`}>
-                        <path d={icon.path} />
-                      </svg>
+                      {icon.svglRoute ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={icon.svglRoute} alt={icon.title} className="size-6 object-contain" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" className="size-5" fill={`#${icon.hex}`}>
+                          <path d={icon.path} />
+                        </svg>
+                      )}
                     </div>
                     <span className="truncate w-full text-center leading-tight">{icon.title}</span>
                   </button>

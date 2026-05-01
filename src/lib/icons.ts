@@ -8,6 +8,8 @@ export type IconResult = {
   title: string;
   hex: string;
   path: string;
+  svglRoute?: string;
+  svglRouteDark?: string;
 };
 
 const bySlug: Record<string, IconResult> = {};

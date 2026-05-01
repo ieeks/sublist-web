@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+
+import { BrandAvatar } from "@/components/app/brand-avatar";
 import { format, parseISO } from "date-fns";
 import {
   CalendarDays,
@@ -19,20 +20,6 @@ import { useMemo, useState } from "react";
 
 import { useAppData } from "@/components/providers/app-providers";
 import { cn, formatCurrency, summarizeTotalSpent, toMonthlyAmount } from "@/lib/utils";
-
-const assetBase = process.env.NODE_ENV === "production" ? "/sublist-web" : "";
-
-const logoMap: Record<string, string> = {
-  chatgpt: `${assetBase}/assets/logos/chatgpt.svg`,
-  claude: `${assetBase}/assets/logos/claude.svg`,
-  netflix: `${assetBase}/assets/logos/netflix.svg`,
-  "icloud-plus": `${assetBase}/assets/logos/icloud-plus.svg`,
-  perplexity: `${assetBase}/assets/logos/perplexity.svg`,
-  "google-ai-pro": `${assetBase}/assets/logos/google-ai-pro.svg`,
-  digitalocean: `${assetBase}/assets/logos/digitalocean.svg`,
-  "github-copilot": `${assetBase}/assets/logos/github-copilot.svg`,
-  "apple-tv-plus": `${assetBase}/assets/logos/apple-tv-plus.svg`,
-};
 
 const desktopNav = [
   { label: "Dashboard", href: "/", icon: LayoutGrid },
@@ -57,26 +44,10 @@ function SceneBadge({
   name: string;
   mobile?: boolean;
 }) {
-  const size = mobile ? "h-11 w-11 rounded-[14px]" : "h-12 w-12 rounded-[14px]";
-  const src = logoMap[kind];
-
-  if (src) {
-    return (
-      <div
-        className={`${size} relative overflow-hidden border border-[#f0f2f6] bg-white shadow-[0_2px_6px_rgba(15,23,42,0.04)]`}
-      >
-        <Image src={src} alt={name} fill sizes="48px" className="object-contain p-2.5" />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`${size} grid place-items-center bg-white text-[12px] font-semibold text-[#5b7cff] shadow-[0_2px_6px_rgba(15,23,42,0.04)]`}
-    >
-      {name.slice(0, 2).toUpperCase()}
-    </div>
-  );
+  const className = mobile
+    ? "h-11 w-11 rounded-[14px] border border-[#f0f2f6] bg-white shadow-[0_2px_6px_rgba(15,23,42,0.04)]"
+    : "h-12 w-12 rounded-[14px] border border-[#f0f2f6] bg-white shadow-[0_2px_6px_rgba(15,23,42,0.04)]";
+  return <BrandAvatar logoKey={kind} name={name} className={className} compact />;
 }
 
 function percentWidth(value: number, max: number) {
@@ -545,15 +516,12 @@ export function MockupScene() {
 
             <div className="absolute right-[52px] top-[236px] w-[270px] rounded-[28px] border border-white/80 bg-[#f7f6f8]/96 px-5 pb-4 pt-5 shadow-[0_22px_56px_rgba(15,23,42,0.12)] backdrop-blur-sm">
               <div className="mb-4 flex justify-center">
-                <div className="grid h-16 w-16 place-items-center rounded-[18px] bg-[#fff4ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
-                  <Image
-                    src={logoMap[selectedSubscription.logoKey] ?? logoMap.claude}
-                    alt={selectedSubscription.name}
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 object-contain"
-                  />
-                </div>
+                <BrandAvatar
+                  logoKey={selectedSubscription.logoKey}
+                  name={selectedSubscription.name}
+                  className="h-16 w-16 rounded-[18px] bg-[#fff4ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]"
+                  compact
+                />
               </div>
               <div className="mb-4 text-center text-[18px] font-semibold tracking-[-0.02em] text-slate-700">
                 {selectedSubscription.name}

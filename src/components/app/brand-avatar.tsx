@@ -21,7 +21,6 @@ const logoMap: Record<string, string> = {
   "amazon-prime": `${assetBase}/assets/logos/amazon-prime.svg`,
 };
 
-// Maps user-friendly keys to their actual Simple Icons slugs
 const SLUG_ALIASES: Record<string, string> = {
   "amazon-prime":       "amazonprimevideo",
   "amazon-prime-video": "amazonprimevideo",
@@ -39,6 +38,8 @@ const SLUG_ALIASES: Record<string, string> = {
 function resolveSlug(logoKey: string): string {
   return SLUG_ALIASES[logoKey] ?? SLUG_ALIASES[logoKey.replace(/-/g, "")] ?? logoKey.replace(/-/g, "") ?? logoKey;
 }
+
+export function BrandAvatar({
   logoKey,
   name,
   className,
@@ -50,15 +51,42 @@ function resolveSlug(logoKey: string): string {
   compact?: boolean;
 }) {
   const source = logoMap[logoKey];
+  const [svglUrl, setSvglUrl] = useState<string | null>(null);
   const [simpleIcon, setSimpleIcon] = useState<{ hex: string; path: string } | null>(null);
 
   useEffect(() => {
     if (source || !logoKey) return;
-    import("@/lib/icons").then(({ getIconBySlug }) => {
-      const icon = getIconBySlug(logoKey) ?? getIconBySlug(resolveSlug(logoKey));
-      setSimpleIcon(icon ? { hex: icon.hex, path: icon.path } : null);
-    });
+    let cancelled = false;
+
+    (async () => {
+      // Primary: svgl
+      try {
+        const { getSvglByName } = await import("@/lib/svgl");
+        const svglIcon = await getSvglByName(logoKey);
+        if (!cancelled && svglIcon) {
+          setSvglUrl(svglIcon.route);
+          return;
+        }
+      } catch {}
+
+      // Fallback: simple-icons
+      try {
+        const { getIconBySlug } = await import("@/lib/icons");
+        const icon = getIconBySlug(logoKey) ?? getIconBySlug(resolveSlug(logoKey));
+        if (!cancelled && icon) {
+          setSimpleIcon({ hex: icon.hex, path: icon.path });
+        }
+      } catch {}
+    })();
+
+    return () => { cancelled = true; };
   }, [logoKey, source]);
+
+  // Reset state when logoKey changes
+  useEffect(() => {
+    setSvglUrl(null);
+    setSimpleIcon(null);
+  }, [logoKey]);
 
   if (source) {
     return (
@@ -74,6 +102,24 @@ function resolveSlug(logoKey: string): string {
           fill
           sizes="96px"
           className="object-contain"
+        />
+      </div>
+    );
+  }
+
+  if (svglUrl) {
+    return (
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-[20px] border border-[#f0f2f6] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]",
+          className,
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={svglUrl}
+          alt={`${name} logo`}
+          className="absolute inset-0 h-full w-full object-contain p-[15%]"
         />
       </div>
     );
