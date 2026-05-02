@@ -48,15 +48,21 @@ function useTokens() {
 // ── Known services ────────────────────────────────────────────────────────────
 
 const KNOWN_SERVICES = [
-  { key: "chatgpt",        label: "ChatGPT"      },
-  { key: "claude",         label: "Claude"        },
-  { key: "netflix",        label: "Netflix"       },
-  { key: "icloud-plus",    label: "iCloud+"       },
-  { key: "perplexity",     label: "Perplexity"    },
-  { key: "google-ai-pro",  label: "Google AI"     },
-  { key: "digitalocean",   label: "DigitalOcean"  },
-  { key: "github-copilot", label: "Copilot"       },
-  { key: "apple-tv-plus",  label: "Apple TV+"     },
+  { key: "chatgpt",        label: "ChatGPT"       },
+  { key: "claude",         label: "Claude"         },
+  { key: "netflix",        label: "Netflix"        },
+  { key: "icloud-plus",    label: "iCloud+"        },
+  { key: "perplexity",     label: "Perplexity"     },
+  { key: "google-ai-pro",  label: "Google AI"      },
+  { key: "digitalocean",   label: "DigitalOcean"   },
+  { key: "github-copilot", label: "Copilot"        },
+  { key: "apple-tv-plus",  label: "Apple TV+"      },
+  { key: "amazon-prime",   label: "Amazon Prime"   },
+  { key: "disney-plus",    label: "Disney+"        },
+  { key: "spotify",        label: "Spotify"        },
+  { key: "youtube",        label: "YouTube"        },
+  { key: "crunchyroll",    label: "Crunchyroll"    },
+  { key: "github",         label: "GitHub"         },
 ] as const;
 
 // ── Draft helpers ─────────────────────────────────────────────────────────────
