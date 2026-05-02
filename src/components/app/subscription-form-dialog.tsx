@@ -110,10 +110,22 @@ function useFormState(subscription?: Subscription) {
   useEffect(() => {
     if (!iconSearch.trim()) { setIconResults([]); return; }
     let cancelled = false;
-    Promise.all([
-      import("@/lib/svgl").then(({ searchSvgl }) => searchSvgl(iconSearch)),
-      import("@/lib/icons").then(({ searchIcons }) => searchIcons(iconSearch)),
-    ]).then(([svglResults, simpleResults]) => {
+
+    (async () => {
+      // Primary: local svgl index (no network, CI-generated)
+      const { searchSvglLocal } = await import("@/lib/svgl-local");
+      const local = searchSvglLocal(iconSearch);
+
+      // Fallback: runtime svgl API + simple-icons (if local index is empty — dev mode)
+      if (local.length > 0) {
+        if (!cancelled) setIconResults(local.map((r) => ({ slug: r.slug, title: r.title, hex: "", path: "", svglRoute: r.path })));
+        return;
+      }
+
+      const [svglResults, simpleResults] = await Promise.all([
+        import("@/lib/svgl").then(({ searchSvgl }) => searchSvgl(iconSearch)),
+        import("@/lib/icons").then(({ searchIcons }) => searchIcons(iconSearch)),
+      ]);
       if (cancelled) return;
       const svglSlugs = new Set(svglResults.map((r) => r.slug));
       const merged = [
@@ -121,7 +133,8 @@ function useFormState(subscription?: Subscription) {
         ...simpleResults.filter((r) => !svglSlugs.has(r.slug)).slice(0, 24 - svglResults.length),
       ];
       setIconResults(merged.slice(0, 24));
-    });
+    })();
+
     return () => { cancelled = true; };
   }, [iconSearch]);
 

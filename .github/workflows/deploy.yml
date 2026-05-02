@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Fetch svgl icons
+        run: node scripts/fetch-svgl.mjs
+
       - name: Build
         run: npm run build
         env:
