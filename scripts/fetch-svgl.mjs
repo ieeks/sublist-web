@@ -13,7 +13,10 @@ function toSlug(str) {
 
 async function main() {
   console.log("Fetching svgl icon list…");
-  const res = await fetch(API_URL);
+  const res = await fetch(API_URL, {
+    headers: { Accept: "application/json", "User-Agent": "sublist-web/1.0" },
+  });
+  if (!res.ok) throw new Error(`svgl API returned ${res.status}: ${await res.text()}`);
   const icons = await res.json();
   console.log(`Found ${icons.length} icons`);
 
