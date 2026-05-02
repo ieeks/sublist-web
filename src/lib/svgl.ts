@@ -38,7 +38,7 @@ function resolveDark(route: SvglRoute): string | undefined {
 async function fetchAll(): Promise<ResolvedSvglIcon[]> {
   if (cache) return cache;
   if (!fetchPromise) {
-    fetchPromise = fetch("https://svgl.app/api/svgs")
+    fetchPromise = fetch("https://api.svgl.app")
       .then((res) => res.json() as Promise<RawSvglIcon[]>)
       .then((data) => {
         cache = data.map((icon) => ({

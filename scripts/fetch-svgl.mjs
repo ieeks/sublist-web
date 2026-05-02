@@ -3,7 +3,7 @@
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 
-const API_URL  = "https://svgl.app/api/svgs";
+const API_URL  = "https://api.svgl.app";
 const OUT_DIR  = "public/assets/svgl";
 const MAP_FILE = "src/lib/svgl-local.ts";
 
