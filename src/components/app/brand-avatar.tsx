@@ -27,6 +27,8 @@ const logoMap: Record<string, string> = {
   amazonprime: `${assetBase}/assets/logos/amazon-prime.svg`,
   amazonprimevideo: `${assetBase}/assets/logos/amazon-prime.svg`,
   "amazon-prime-video": `${assetBase}/assets/logos/amazon-prime.svg`,
+  "prime-video": `${assetBase}/assets/logos/amazon-prime.svg`,
+  primevideo: `${assetBase}/assets/logos/amazon-prime.svg`,
 };
 
 const SLUG_ALIASES: Record<string, string> = {
