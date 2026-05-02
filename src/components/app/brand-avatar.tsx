@@ -69,28 +69,30 @@ export function BrandAvatar({
     let cancelled = false;
 
     (async () => {
-      // Primary: svgl
       try {
-        const { getSvglByName } = await import("@/lib/svgl");
-        const svglIcon = await getSvglByName(logoKey);
-        if (!cancelled && svglIcon) {
-          setSvglUrl(svglIcon.route);
-          return;
+        const { getSvglByName, searchSvgl } = await import("@/lib/svgl");
+
+        // 1. Exact slug match on logoKey
+        const byKey = await getSvglByName(logoKey);
+        if (!cancelled && byKey) { setSvglUrl(byKey.route); return; }
+
+        // 2. Search svgl using the subscription name as fallback
+        if (name) {
+          const byName = await searchSvgl(name);
+          if (!cancelled && byName.length > 0) { setSvglUrl(byName[0].route); return; }
         }
       } catch {}
 
-      // Fallback: simple-icons
+      // 3. simple-icons fallback
       try {
         const { getIconBySlug } = await import("@/lib/icons");
         const icon = getIconBySlug(logoKey) ?? getIconBySlug(resolveSlug(logoKey));
-        if (!cancelled && icon) {
-          setSimpleIcon({ hex: icon.hex, path: icon.path });
-        }
+        if (!cancelled && icon) setSimpleIcon({ hex: icon.hex, path: icon.path });
       } catch {}
     })();
 
     return () => { cancelled = true; };
-  }, [logoKey, source]);
+  }, [logoKey, source, name]);
 
   // Reset state when logoKey changes
   useEffect(() => {
