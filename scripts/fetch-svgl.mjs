@@ -1,24 +1,62 @@
-// Downloads all SVG icons from svgl.app and generates src/lib/svgl-local.ts
+// Downloads all SVG icons from svgl and generates src/lib/svgl-local.ts
 // Usage: node scripts/fetch-svgl.mjs
+//
+// Sources tried in order:
+//   1. https://api.svgl.app  (official REST API)
+//   2. GitHub raw TS data file + raw SVG files (reliable fallback)
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 
-const API_URL  = "https://api.svgl.app";
-const OUT_DIR  = "public/assets/svgl";
-const MAP_FILE = "src/lib/svgl-local.ts";
+const API_URL       = "https://api.svgl.app";
+const GH_DATA_URL   = "https://raw.githubusercontent.com/pheralb/svgl/main/src/data/svgs.ts";
+const GH_SVG_BASE   = "https://raw.githubusercontent.com/pheralb/svgl/main/static";
+const SVGL_BASE     = "https://svgl.app";
+const OUT_DIR       = "public/assets/svgl";
+const MAP_FILE      = "src/lib/svgl-local.ts";
 
 function toSlug(str) {
   return str.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+async function fetchIconList() {
+  // Try official API first
+  try {
+    const res = await fetch(API_URL, {
+      headers: { Accept: "application/json", "User-Agent": "sublist-web/1.0" },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.log(`[API] ${data.length} icons`);
+        return { icons: data, svgBase: SVGL_BASE };
+      }
+    }
+    console.warn(`[API] status ${res.status} — falling back to GitHub raw`);
+  } catch (err) {
+    console.warn(`[API] ${err.message} — falling back to GitHub raw`);
+  }
+
+  // Fallback: parse the TypeScript data file from GitHub
+  console.log("Fetching icon list from GitHub raw…");
+  const tsRes = await fetch(GH_DATA_URL);
+  if (!tsRes.ok) throw new Error(`GitHub data fetch failed: ${tsRes.status}`);
+  const ts = await tsRes.text();
+
+  const js = ts
+    .split("\n")
+    .filter((l) => !l.startsWith("import "))
+    .map((l) => l.replace(/^export const svgs: iSVG\[\] = \[/, "return ["))
+    .join("\n");
+
+  const icons = new Function(js)();
+  if (!Array.isArray(icons) || icons.length === 0) throw new Error("Failed to parse TypeScript data");
+  console.log(`[GitHub] ${icons.length} icons`);
+  return { icons, svgBase: GH_SVG_BASE };
+}
+
 async function main() {
   console.log("Fetching svgl icon list…");
-  const res = await fetch(API_URL, {
-    headers: { Accept: "application/json", "User-Agent": "sublist-web/1.0" },
-  });
-  if (!res.ok) throw new Error(`svgl API returned ${res.status}: ${await res.text()}`);
-  const icons = await res.json();
-  console.log(`Found ${icons.length} icons`);
+  const { icons, svgBase } = await fetchIconList();
 
   mkdirSync(OUT_DIR, { recursive: true });
 
@@ -29,12 +67,16 @@ async function main() {
     if (!route) continue;
     const filename = route.split("/").pop();
     if (!filename?.endsWith(".svg")) continue;
+
+    // Build absolute download URL
+    const downloadUrl = route.startsWith("http") ? route : `${svgBase}${route}`;
+
     entries.push({
-      fileKey:   filename.replace(".svg", ""),   // e.g. "prime-video", "disneyplus"
-      titleSlug: toSlug(icon.title),              // e.g. "primevideo", "disney"
-      title:     icon.title,
+      fileKey:     filename.replace(".svg", ""),
+      titleSlug:   toSlug(icon.title),
+      title:       icon.title,
       filename,
-      route,
+      downloadUrl,
     });
   }
 
@@ -46,7 +88,7 @@ async function main() {
       const outPath = `${OUT_DIR}/${e.filename}`;
       if (existsSync(outPath)) { done++; return; }
       try {
-        const r = await fetch(e.route);
+        const r = await fetch(e.downloadUrl);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         writeFileSync(outPath, await r.text());
         done++;
