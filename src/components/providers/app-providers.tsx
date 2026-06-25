@@ -17,10 +17,11 @@ import { emptyAppData } from "@/data/seed";
 import { db } from "@/lib/firebase";
 import { migrateFromLocalStorageIfNeeded } from "@/lib/migrate";
 import { FALLBACK_RATES, fetchFxRates } from "@/lib/currencies";
-import { calculateNextDueDate } from "@/lib/utils";
+import { buildPaymentTimeline, calculateNextDueDate } from "@/lib/utils";
 import type {
   AppData,
   Category,
+  PaymentHistoryItem,
   PaymentMethod,
   SettingsState,
   Subscription,
@@ -66,11 +67,60 @@ function normalizeSubscription(subscription: Subscription): Subscription {
   };
 }
 
+const REMOVED_PAYMENT_METHOD_IDS = new Set(["amex-gold", "n26-virtual"]);
+const RENAMED_PAYMENT_METHOD_IDS: Record<string, string> = {
+  "revolut-business": "revolut",
+};
+
+function normalizePaymentMethods(data: AppData): AppData {
+  const hadRemovedMethod = data.paymentMethods.some((method) =>
+    REMOVED_PAYMENT_METHOD_IDS.has(method.id),
+  );
+
+  let paymentMethods = data.paymentMethods
+    .filter((method) => !REMOVED_PAYMENT_METHOD_IDS.has(method.id))
+    .map((method) => {
+      const renamedId = RENAMED_PAYMENT_METHOD_IDS[method.id];
+      return renamedId ? { ...method, id: renamedId, name: "Revolut" } : method;
+    });
+
+  if (hadRemovedMethod && !paymentMethods.some((method) => method.id === "mastercard")) {
+    paymentMethods = [
+      ...paymentMethods,
+      { id: "mastercard", name: "Mastercard", type: "credit_card", color: "#eb001b", lastFour: "2401" },
+    ];
+  }
+
+  const subscriptions = data.subscriptions.map((subscription) => {
+    if (REMOVED_PAYMENT_METHOD_IDS.has(subscription.paymentMethodId)) {
+      return { ...subscription, paymentMethodId: "mastercard" };
+    }
+    const renamedId = RENAMED_PAYMENT_METHOD_IDS[subscription.paymentMethodId];
+    return renamedId ? { ...subscription, paymentMethodId: renamedId } : subscription;
+  });
+
+  return { ...data, paymentMethods, subscriptions };
+}
+
 function normalizeData(data: AppData): AppData {
+  const normalized = normalizePaymentMethods(data);
   return {
-    ...data,
-    subscriptions: data.subscriptions.map(normalizeSubscription),
+    ...normalized,
+    subscriptions: normalized.subscriptions.map(normalizeSubscription),
   };
+}
+
+function buildPaymentHistoryForSubscription(
+  subscription: Subscription,
+): PaymentHistoryItem[] {
+  return buildPaymentTimeline(subscription).map((entry, index) => ({
+    id: `${subscription.id}-${index}-${entry.date.replace(/-/g, "")}`,
+    subscriptionId: subscription.id,
+    date: entry.date,
+    amountCents: entry.amountCents,
+    currency: subscription.currency,
+    note: "Auto-generated payment",
+  }));
 }
 
 function draftToSubscription(draft: SubscriptionDraft): Subscription {
@@ -190,16 +240,23 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           const existingIndex = current.subscriptions.findIndex(
             (item) => item.id === subscription.id,
           );
-
-          if (existingIndex >= 0) {
-            const nextSubscriptions = [...current.subscriptions];
-            nextSubscriptions[existingIndex] = subscription;
-            return { ...current, subscriptions: nextSubscriptions };
-          }
+          const nextSubscriptions =
+            existingIndex >= 0
+              ? current.subscriptions.map((item, index) =>
+                  index === existingIndex ? subscription : item,
+                )
+              : [...current.subscriptions, subscription];
+          const nextPaymentHistory = [
+            ...current.paymentHistory.filter(
+              (entry) => entry.subscriptionId !== subscription.id,
+            ),
+            ...buildPaymentHistoryForSubscription(subscription),
+          ];
 
           return {
             ...current,
-            subscriptions: [...current.subscriptions, subscription],
+            subscriptions: nextSubscriptions,
+            paymentHistory: nextPaymentHistory,
           };
         });
       },
@@ -299,11 +356,19 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
               }
             });
 
+            const importedIds = new Set(imported.map((subscription) => subscription.id));
+
             return {
               ...current,
               categories: mergedCategories,
               paymentMethods: mergedMethods,
               subscriptions: imported,
+              paymentHistory: [
+                ...current.paymentHistory.filter(
+                  (entry) => !importedIds.has(entry.subscriptionId),
+                ),
+                ...imported.flatMap(buildPaymentHistoryForSubscription),
+              ],
             };
           });
         });
