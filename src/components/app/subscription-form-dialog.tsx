@@ -408,7 +408,7 @@ function MobileFormBody({
         </FieldRow>
 
         {/* Kategorie */}
-        <FieldRow label="Kategorie">
+        <FieldRow label="Kategorie" border>
           <select
             value={draft.categoryId}
             onChange={(e) => update('categoryId', e.target.value)}
@@ -419,6 +419,22 @@ function MobileFormBody({
           >
             {data.categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+        </FieldRow>
+
+        {/* Zahlung */}
+        <FieldRow label="Zahlung">
+          <select
+            value={draft.paymentMethodId}
+            onChange={(e) => update('paymentMethodId', e.target.value)}
+            style={{
+              background: 'none', border: 'none', outline: 'none', textAlign: 'right',
+              fontSize: 14, fontWeight: 500, color: T.accent, cursor: 'pointer',
+            }}
+          >
+            {data.paymentMethods.map((method) => (
+              <option key={method.id} value={method.id}>{method.name}</option>
             ))}
           </select>
         </FieldRow>
