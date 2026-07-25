@@ -157,6 +157,11 @@ export function SettingsScreen() {
     }));
   }, [data.categories, data.subscriptions]);
 
+  const archivedCount = useMemo(
+    () => data.subscriptions.filter((s) => s.status === 'archived').length,
+    [data.subscriptions],
+  );
+
   const isDark = resolvedTheme === 'dark';
 
   function toggleAppearance() {
@@ -227,6 +232,15 @@ export function SettingsScreen() {
             </Row>
           ))
         )}
+      </Group>
+
+      {/* ── Archiv ── */}
+      <Group title="Archiv">
+        <Row label="Archivierte Abos" last>
+          <span style={{ fontSize: 13, color: T.sub }}>
+            {archivedCount} Abo{archivedCount !== 1 ? 's' : ''}
+          </span>
+        </Row>
       </Group>
 
       {/* ── Benachrichtigungen ── */}

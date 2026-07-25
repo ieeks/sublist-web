@@ -36,7 +36,7 @@ src/
     app/
       app-shell.tsx           Sidebar (Desktop) + Tab-Bar (Mobile) + Layout
       dashboard-screen.tsx    Dashboard mit Donut-Chart, Stat-Tiles, Upcoming
-      subscriptions-screen.tsx  Liste + Swipe-Delete + Mobile Detail Sheet
+      subscriptions-screen.tsx  Liste + Swipe (Archiv/Delete) + Archiv-Ansicht + Mobile Detail Sheet
       calendar-screen.tsx     Monatsraster + Day Panel + Verlängerungsliste
       settings-screen.tsx     4 Gruppen: Darstellung / Kategorien / Benachrichtigungen / Daten
       subscription-form-dialog.tsx  Mobile: BottomSheet mit Beliebt-Grid; Desktop: Dialog
@@ -67,6 +67,25 @@ src/
 - **FX-Rates:** Beim App-Start von `open.er-api.com/v6/latest/EUR` geladen (CORS-kompatibel), hartcodierter Fallback bei Fehler. Unterstützte Währungen: EUR, USD, TRY, INR.
 - **Kein Auth:** Firestore-Rules erlauben `read/write: if true` auf `sublist/data`.
 
+## 4b) Archiv (gekündigte Abos)
+
+Gekündigte Abos gehören ins **Archiv** statt in den Papierkorb — Löschen entfernt auch die
+Zahlungshistorie und ist nicht rückgängig zu machen.
+
+- **Status:** `status: "archived"` + `archivedAt` (`yyyy-MM-dd`). Das Feld wird beim Archivieren
+  gesetzt und beim Reaktivieren wieder entfernt (Firestore verträgt kein `undefined`, deshalb
+  wird der Key gelöscht statt auf `undefined` gesetzt).
+- **Einstiegspunkte:** Detail-Panel (Desktop: `Archive`/`Restore`), Mobile Detail Sheet
+  (`Archivieren`/`Reaktivieren`), Swipe-Geste in der Liste (graue Archiv-Zone vor der roten
+  Lösch-Zone), Löschdialog (bietet Archivieren als Alternative an) und das Status-Feld im Formular.
+- **Archiv-Ansicht:** Segment-Tab `Aktiv | Archiv (n)` (Desktop) bzw. Archiv-Pill (Mobile) im
+  Subscriptions-Screen. Zeilen dort zeigen Archivdatum plus Reaktivieren/Endgültig-löschen.
+- **Ausschluss:** Archivierte Abos sind aus Dashboard, Liste, Kalender und allen Summen gefiltert;
+  `nextDueDate` wird für sie in `normalizeSubscription()` **nicht** mehr fortgeschrieben.
+- **Historie:** `buildPaymentTimeline()` endet am `archivedAt`, d.h. „Total spent" wächst nicht
+  weiter. Beim Reaktivieren wird die Timeline neu bis heute aufgebaut.
+- **CSV:** Spalte `archivedAt` wird exportiert und importiert.
+
 ## 5) Dark Mode
 
 - `next-themes` mit `attribute="class"` setzt `.dark` auf `<html>`.
@@ -79,7 +98,7 @@ src/
 | Screen | Status | Besonderheiten |
 |---|---|---|
 | Dashboard | ✅ hi-fi | Donut SVG, Stat-Tiles, Upcoming-List |
-| Subscriptions | ✅ hi-fi | Filter-Pills (Alle/Monatlich/Jährlich), Swipe-Delete, MobileDetailSheet |
+| Subscriptions | ✅ hi-fi | Filter-Pills (Alle/Monatlich/Jährlich) + Archiv, Swipe (Archiv/Delete), MobileDetailSheet |
 | Calendar | ✅ hi-fi | Monday-first Grid, Day Panel, Verlängerungsliste, theme-aware |
 | Settings | ✅ hi-fi | 4 Gruppen, Dark-Mode Toggle, Währung, Kategorien, CSV-Daten |
 | Add/Edit Form | ✅ hi-fi | Mobile: BottomSheet (Beliebt + Grouped-Rows); Desktop: Dialog |

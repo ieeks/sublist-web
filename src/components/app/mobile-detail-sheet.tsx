@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
-import { Pencil, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
@@ -21,8 +22,11 @@ export function MobileDetailSheet({
   onClose,
   onEdit,
 }: MobileDetailSheetProps) {
-  const { data, deleteSubscription } = useAppData();
+  const { data, deleteSubscription, updateSubscriptionStatus } = useAppData();
   const subscription = data.subscriptions.find((s) => s.id === subscriptionId);
+  // Tracked by id so the confirmation resets when the sheet switches subscription or closes.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | undefined>();
+  const confirmingDelete = open && confirmDeleteId !== undefined && confirmDeleteId === subscriptionId;
 
   if (!subscription) return null;
 
@@ -34,7 +38,8 @@ export function MobileDetailSheet({
     .slice(0, 7);
   const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
   const daysLeft = daysUntil(subscription.nextDueDate);
-  const isUrgent = daysLeft <= 7;
+  const isArchived = subscription.status === "archived";
+  const isUrgent = !isArchived && daysLeft <= 7;
 
   const cycleLabel =
     subscription.billingCycle === "monthly"
@@ -59,17 +64,28 @@ export function MobileDetailSheet({
           <div className="mt-3 text-[18px] font-semibold tracking-[-0.04em] text-[var(--text)]">
             {subscription.name}
           </div>
-          {category && (
-            <span
-              className="mt-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-              style={{
-                backgroundColor: `${category.color}22`,
-                color: category.color,
-              }}
-            >
-              {category.name}
-            </span>
-          )}
+          <div className="mt-1.5 flex items-center gap-1.5">
+            {category && (
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                style={{
+                  backgroundColor: `${category.color}22`,
+                  color: category.color,
+                }}
+              >
+                {category.name}
+              </span>
+            )}
+            {isArchived && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                style={{ background: "var(--surface-2)", color: "var(--sub)" }}
+              >
+                <Archive className="size-3" />
+                Archiviert
+              </span>
+            )}
+          </div>
           {/* Price hero */}
           <div className="mt-4 text-[42px] font-bold leading-none tracking-[-2px] text-[var(--text)]">
             {formatCurrency(subscription.amountCents, subscription.currency)}
@@ -82,15 +98,25 @@ export function MobileDetailSheet({
           className="rounded-[16px] border border-[var(--border)] bg-[var(--surface-2)]"
           style={{ overflow: "hidden" }}
         >
-          <InfoRow label="Next payment">
-            <span style={{ color: isUrgent ? "#f97316" : "var(--text)", fontWeight: 600 }}>
-              {isUrgent && "⚡ "}
-              {format(new Date(subscription.nextDueDate), "MMM d")}
-              <span className="ml-1 text-[12px] font-normal" style={{ color: isUrgent ? "#f97316" : "var(--sub)" }}>
-                {daysLeft === 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `in ${daysLeft}d`}
+          {isArchived ? (
+            <InfoRow label="Archiviert am">
+              <span className="font-medium text-[var(--text)]">
+                {subscription.archivedAt
+                  ? format(new Date(subscription.archivedAt), "d. MMM yyyy")
+                  : "—"}
               </span>
-            </span>
-          </InfoRow>
+            </InfoRow>
+          ) : (
+            <InfoRow label="Next payment">
+              <span style={{ color: isUrgent ? "#f97316" : "var(--text)", fontWeight: 600 }}>
+                {isUrgent && "⚡ "}
+                {format(new Date(subscription.nextDueDate), "MMM d")}
+                <span className="ml-1 text-[12px] font-normal" style={{ color: isUrgent ? "#f97316" : "var(--sub)" }}>
+                  {daysLeft === 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `in ${daysLeft}d`}
+                </span>
+              </span>
+            </InfoRow>
+          )}
           <InfoRow label="Billing cycle">
             <span className="font-medium text-[var(--text)]">{cycleLabel}</span>
           </InfoRow>
@@ -141,35 +167,64 @@ export function MobileDetailSheet({
         )}
 
         {/* Actions */}
-        <div className="mt-5 grid grid-cols-2 gap-3 pb-2">
+        <div className="mt-5 space-y-3 pb-6">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              className="sl-tap-target flex items-center justify-center gap-2 rounded-[14px] py-3.5 text-[15px] font-semibold text-white"
+              style={{
+                background: "var(--accent)",
+                boxShadow: "0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent)",
+              }}
+              onClick={() => { onClose(); onEdit(); }}
+            >
+              <Pencil className="size-4" />
+              Bearbeiten
+            </button>
+            <button
+              type="button"
+              className="sl-tap-target flex items-center justify-center gap-2 rounded-[14px] py-3.5 text-[15px] font-semibold"
+              style={{
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+              onClick={() => {
+                updateSubscriptionStatus(subscription.id, isArchived ? "active" : "archived");
+                onClose();
+              }}
+            >
+              {isArchived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
+              {isArchived ? "Reaktivieren" : "Archivieren"}
+            </button>
+          </div>
+
           <button
             type="button"
-            className="sl-tap-target flex items-center justify-center gap-2 rounded-[14px] py-3.5 text-[15px] font-semibold text-white"
+            className="sl-tap-target flex w-full items-center justify-center gap-2 rounded-[14px] py-3.5 text-[15px] font-semibold"
             style={{
-              background: "var(--accent)",
-              boxShadow: "0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent)",
-            }}
-            onClick={() => { onClose(); onEdit(); }}
-          >
-            <Pencil className="size-4" />
-            Edit
-          </button>
-          <button
-            type="button"
-            className="sl-tap-target flex items-center justify-center gap-2 rounded-[14px] py-3.5 text-[15px] font-semibold"
-            style={{
-              background: "rgba(239,68,68,0.10)",
-              border: "1px solid rgba(239,68,68,0.20)",
-              color: "#ef4444",
+              background: confirmingDelete ? "#ef4444" : "rgba(239,68,68,0.10)",
+              border: `1px solid ${confirmingDelete ? "#ef4444" : "rgba(239,68,68,0.20)"}`,
+              color: confirmingDelete ? "#fff" : "#ef4444",
             }}
             onClick={() => {
+              if (!confirmingDelete) {
+                setConfirmDeleteId(subscription.id);
+                return;
+              }
               deleteSubscription(subscription.id);
+              setConfirmDeleteId(undefined);
               onClose();
             }}
           >
             <Trash2 className="size-4" />
-            Delete
+            {confirmingDelete ? "Wirklich endgültig löschen?" : "Endgültig löschen"}
           </button>
+          {!isArchived && !confirmingDelete && (
+            <p className="pb-1 text-center text-[11px] leading-snug" style={{ color: "var(--sub)" }}>
+              Gekündigt? Archivieren behält die Historie — Löschen entfernt alles.
+            </p>
+          )}
         </div>
       </div>
     </BottomSheet>

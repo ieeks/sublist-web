@@ -44,6 +44,8 @@ export interface Subscription {
   nextDueDate: string;
   notes: string;
   status: SubscriptionStatus;
+  /** Set while status is "archived" (yyyy-MM-dd), removed on restore. */
+  archivedAt?: string;
 }
 
 export interface SettingsState {
@@ -72,4 +74,5 @@ export interface SubscriptionDraft {
   startDate: string;
   status: SubscriptionStatus;
   notes: string;
+  archivedAt?: string;
 }

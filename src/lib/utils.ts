@@ -53,10 +53,15 @@ export function calculateNextDueDate(startDate: string, billingCycle: BillingCyc
 
 export function buildPaymentTimeline(subscription: Subscription, maxItems = 18) {
   const today = startOfDay(new Date());
+  // Archived subscriptions stop generating payments on the day they were archived.
+  const archivedAt = subscription.archivedAt
+    ? startOfDay(new Date(subscription.archivedAt))
+    : null;
+  const lastDate = archivedAt && isBefore(archivedAt, today) ? archivedAt : today;
   const items: Array<{ date: string; amountCents: number }> = [];
   let cursor = startOfDay(new Date(subscription.startDate));
 
-  while ((isBefore(cursor, today) || isSameDay(cursor, today)) && items.length < maxItems) {
+  while ((isBefore(cursor, lastDate) || isSameDay(cursor, lastDate)) && items.length < maxItems) {
     items.push({
       date: format(cursor, "yyyy-MM-dd"),
       amountCents: subscription.amountCents,

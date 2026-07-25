@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
-import { Pencil, PauseCircle, Share2, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, PauseCircle, Share2, Trash2, X } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
@@ -21,6 +22,9 @@ export function SubscriptionDetail({
 }) {
   const { data, deleteSubscription, updateSubscriptionStatus } = useAppData();
   const subscription = data.subscriptions.find((item) => item.id === subscriptionId);
+  // Tracked by id so the confirmation resets when another subscription is selected.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | undefined>();
+  const confirmingDelete = confirmDeleteId !== undefined && confirmDeleteId === subscriptionId;
 
   if (!subscription) {
     return (
@@ -40,6 +44,7 @@ export function SubscriptionDetail({
     .filter((entry) => entry.subscriptionId === subscription.id)
     .sort((left, right) => right.date.localeCompare(left.date));
   const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
+  const isArchived = subscription.status === "archived";
 
   return (
     <Card className="min-h-[420px] rounded-[28px] border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,251,0.96))] shadow-[0_22px_56px_-34px_rgba(15,23,42,0.18)]">
@@ -72,29 +77,62 @@ export function SubscriptionDetail({
             <h2 className="text-[18px] font-semibold tracking-[-0.04em] text-[#3f4656]">
               {subscription.name}
             </h2>
+            {isArchived && (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#f1f3f7] px-2.5 py-1 text-[11px] font-medium text-[#7f8797]">
+                <Archive className="size-3" />
+                Archiviert
+                {subscription.archivedAt
+                  ? ` · ${format(new Date(subscription.archivedAt), "MMM d, yyyy")}`
+                  : ""}
+              </div>
+            )}
           </div>
 
-          <div className="mt-5 flex justify-center gap-6 border-y border-[#edf0f5] py-3.5 text-[11px] text-[#7f8797]">
+          {isArchived && (
+            <p className="mt-3 rounded-[14px] bg-[#f7f8fb] px-3.5 py-2.5 text-center text-[11px] leading-snug text-[#98a1b2]">
+              Zählt nicht mehr in Summen, Liste und Kalender. Historie bleibt erhalten.
+            </p>
+          )}
+
+          <div className="mt-5 flex justify-center gap-5 border-y border-[#edf0f5] py-3.5 text-[11px] text-[#7f8797]">
             <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5">
               <Pencil className="size-3.5" />
               Edit
             </button>
-            <button type="button" className="inline-flex items-center gap-1.5 text-[#8c96a8]">
-              <Share2 className="size-3.5" />
-              Share
-            </button>
+            {!isArchived && (
+              <>
+                <button type="button" className="inline-flex items-center gap-1.5 text-[#8c96a8]">
+                  <Share2 className="size-3.5" />
+                  Share
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateSubscriptionStatus(
+                      subscription.id,
+                      subscription.status === "paused" ? "active" : "paused",
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5"
+                >
+                  <PauseCircle className="size-3.5" />
+                  {subscription.status === "paused" ? "Resume" : "Suspend"}
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() =>
-                updateSubscriptionStatus(
-                  subscription.id,
-                  subscription.status === "paused" ? "active" : "paused",
-                )
+                updateSubscriptionStatus(subscription.id, isArchived ? "active" : "archived")
               }
               className="inline-flex items-center gap-1.5"
             >
-              <PauseCircle className="size-3.5" />
-              {subscription.status === "paused" ? "Resume" : "Suspend"}
+              {isArchived ? (
+                <ArchiveRestore className="size-3.5" />
+              ) : (
+                <Archive className="size-3.5" />
+              )}
+              {isArchived ? "Restore" : "Archive"}
             </button>
           </div>
 
@@ -110,10 +148,21 @@ export function SubscriptionDetail({
               label="Start date"
               value={format(new Date(subscription.startDate), "MMM d, yyyy")}
             />
-            <DetailRow
-              label="Next due"
-              value={format(new Date(subscription.nextDueDate), "MMM d")}
-            />
+            {isArchived ? (
+              <DetailRow
+                label="Archived on"
+                value={
+                  subscription.archivedAt
+                    ? format(new Date(subscription.archivedAt), "MMM d, yyyy")
+                    : "—"
+                }
+              />
+            ) : (
+              <DetailRow
+                label="Next due"
+                value={format(new Date(subscription.nextDueDate), "MMM d")}
+              />
+            )}
             <DetailRow
               label="Total spent"
               value={formatCurrency(totalSpent, subscription.currency)}
@@ -155,15 +204,27 @@ export function SubscriptionDetail({
             </ScrollArea>
           </div>
 
-          <div className="mt-5 flex justify-end">
+          <div className="mt-5 flex items-center justify-end gap-2">
+            {confirmingDelete && (
+              <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(undefined)}>
+                Cancel
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => deleteSubscription(subscription.id)}
+              onClick={() => {
+                if (!confirmingDelete) {
+                  setConfirmDeleteId(subscription.id);
+                  return;
+                }
+                deleteSubscription(subscription.id);
+                setConfirmDeleteId(undefined);
+              }}
               className="text-[#d15f5f]"
             >
               <Trash2 className="size-3.5" />
-              Delete
+              {confirmingDelete ? "Delete permanently?" : "Delete"}
             </Button>
           </div>
         </div>
