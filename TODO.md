@@ -7,6 +7,8 @@
 - Payment-History editierbar machen (statt nur Demo-Daten)
 - JSON-Backup/Restore als Alternative zu CSV
 - EUR-Subtext auf Dashboard-Karten (Mobile)
+- Status `paused` konsistent behandeln: wird aktuell weder aus Summen noch aus dem Kalender
+  ausgenommen (im Gegensatz zu `archived`)
 
 ## Deployment
 

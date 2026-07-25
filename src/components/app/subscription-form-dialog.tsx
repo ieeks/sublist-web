@@ -88,6 +88,7 @@ function toDraft(subscription?: Subscription): SubscriptionDraft {
     rewards: subscription.rewards ?? "",
     startDate: subscription.startDate,
     status: subscription.status,
+    archivedAt: subscription.archivedAt,
     notes: subscription.notes,
   };
 }
@@ -695,6 +696,12 @@ function DesktopFormBody({
                   <SelectItem value="archived">Archived</SelectItem>
                 </SelectContent>
               </Select>
+              {draft.status === "archived" && (
+                <span className="text-[11px] leading-snug text-[#98a1b2]">
+                  Wird ins Archiv verschoben: raus aus Summen, Liste und Kalender —
+                  Zahlungshistorie bleibt erhalten.
+                </span>
+              )}
             </label>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { LoadingSpinner } from "@/components/app/loading-spinner";
@@ -28,11 +28,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { convertCurrency, toEurCents } from "@/lib/currencies";
-import { daysUntil, formatCurrency, toMonthlyAmount } from "@/lib/utils";
+import {
+  daysUntil,
+  formatCurrency,
+  summarizeTotalSpent,
+  toMonthlyAmount,
+} from "@/lib/utils";
 import type { Subscription } from "@/lib/types";
 
 export function SubscriptionsScreen() {
-  const { data, ready, fxRates, deleteSubscription } = useAppData();
+  const { data, ready, fxRates, deleteSubscription, updateSubscriptionStatus } = useAppData();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -41,9 +46,29 @@ export function SubscriptionsScreen() {
   const [detailSheetId, setDetailSheetId] = useState<string | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cycleFilter, setCycleFilter] = useState<'Alle' | 'Monatlich' | 'Jährlich'>('Alle');
+  const [view, setView] = useState<'active' | 'archived'>('active');
   const [editingSubscription, setEditingSubscription] = useState<Subscription | undefined>();
   const deferredQuery = useDeferredValue(query);
   const selectedFromQuery = searchParams.get("subscription") ?? undefined;
+
+  const archivedSubscriptions = useMemo(
+    () =>
+      data.subscriptions
+        .filter((subscription) => subscription.status === "archived")
+        .filter((subscription) =>
+          subscription.name.toLowerCase().includes(deferredQuery.toLowerCase()),
+        )
+        .sort((left, right) =>
+          (right.archivedAt ?? "").localeCompare(left.archivedAt ?? "") ||
+          left.name.localeCompare(right.name),
+        ),
+    [data.subscriptions, deferredQuery],
+  );
+
+  const archivedCount = useMemo(
+    () => data.subscriptions.filter((subscription) => subscription.status === "archived").length,
+    [data.subscriptions],
+  );
 
   const filteredSubscriptions = useMemo(
     () =>
@@ -67,11 +92,19 @@ export function SubscriptionsScreen() {
     [categoryFilter, cycleFilter, data.subscriptions, deferredQuery, paymentFilter],
   );
 
-  const effectiveSelectedId = filteredSubscriptions.find((item) => item.id === selectedFromQuery)
+  const visibleSubscriptions =
+    view === "archived" ? archivedSubscriptions : filteredSubscriptions;
+
+  const effectiveSelectedId = visibleSubscriptions.find((item) => item.id === selectedFromQuery)
     ? selectedFromQuery
-    : filteredSubscriptions.find((item) => item.id === selectedId)
+    : visibleSubscriptions.find((item) => item.id === selectedId)
       ? selectedId
-      : filteredSubscriptions[0]?.id;
+      : visibleSubscriptions[0]?.id;
+
+  function showActive(cycle: 'Alle' | 'Monatlich' | 'Jährlich') {
+    setCycleFilter(cycle);
+    setView("active");
+  }
 
   function openCreateDialog() {
     setEditingSubscription(undefined);
@@ -90,6 +123,20 @@ export function SubscriptionsScreen() {
     0,
   );
 
+  const archivedTotalSpent = archivedSubscriptions.reduce(
+    (sum, sub) =>
+      sum +
+      convertCurrency(
+        summarizeTotalSpent(sub.id, data.paymentHistory),
+        sub.currency,
+        defaultCurrency,
+        fxRates,
+      ),
+    0,
+  );
+
+  const isArchiveView = view === "archived";
+
   if (!ready) return <LoadingSpinner />;
 
   return (
@@ -104,13 +151,24 @@ export function SubscriptionsScreen() {
                 className="text-[26px] font-bold tracking-[-0.8px]"
                 style={{ color: "var(--text)" }}
               >
-                Abonnements
+                {isArchiveView ? "Archiv" : "Abonnements"}
               </div>
               <div className="text-[13px] mt-0.5" style={{ color: "var(--sub)" }}>
-                Gesamt:{" "}
-                <span className="font-semibold" style={{ color: "var(--text)" }}>
-                  {formatCurrency(totalDue, defaultCurrency)} / mo
-                </span>
+                {isArchiveView ? (
+                  <>
+                    {archivedCount} archiviert · ausgegeben:{" "}
+                    <span className="font-semibold" style={{ color: "var(--text)" }}>
+                      {formatCurrency(archivedTotalSpent, defaultCurrency)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Gesamt:{" "}
+                    <span className="font-semibold" style={{ color: "var(--text)" }}>
+                      {formatCurrency(totalDue, defaultCurrency)} / mo
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             <button
@@ -128,37 +186,70 @@ export function SubscriptionsScreen() {
           </div>
 
           {/* Filter pills */}
-          <div className="flex gap-1.5 pt-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            {(['Alle', 'Monatlich', 'Jährlich'] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setCycleFilter(f)}
-                className="sl-tap-target shrink-0 px-3.5 py-1.5 rounded-[20px] text-[13px] transition-all"
-                style={{
-                  background: cycleFilter === f ? "var(--accent)" : "var(--surface-2)",
-                  border: `1px solid ${cycleFilter === f ? "var(--accent)" : "var(--border)"}`,
-                  fontWeight: cycleFilter === f ? 600 : 400,
-                  color: cycleFilter === f ? "#fff" : "var(--sub)",
-                }}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-1.5 pt-4 pb-1">
+            {(['Alle', 'Monatlich', 'Jährlich'] as const).map((f) => {
+              const active = !isArchiveView && cycleFilter === f;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => showActive(f)}
+                  className="sl-tap-target shrink-0 px-3.5 py-1.5 rounded-[20px] text-[13px] transition-all"
+                  style={{
+                    background: active ? "var(--accent)" : "var(--surface-2)",
+                    border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? "#fff" : "var(--sub)",
+                  }}
+                >
+                  {f}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setView(isArchiveView ? "active" : "archived")}
+              className="sl-tap-target ml-auto flex shrink-0 items-center gap-1.5 px-3.5 py-1.5 rounded-[20px] text-[13px] transition-all"
+              style={{
+                background: isArchiveView ? "var(--accent)" : "var(--surface-2)",
+                border: `1px solid ${isArchiveView ? "var(--accent)" : "var(--border)"}`,
+                fontWeight: isArchiveView ? 600 : 400,
+                color: isArchiveView ? "#fff" : "var(--sub)",
+              }}
+            >
+              <Archive className="size-3.5" />
+              Archiv{archivedCount > 0 ? ` ${archivedCount}` : ""}
+            </button>
           </div>
 
           {/* Subscription cards */}
           <div className="space-y-2 pt-3">
-            {filteredSubscriptions.map((subscription) => (
-              <SwipeDeleteRow
-                key={subscription.id}
-                subscription={subscription}
-                fxRates={fxRates}
-                categories={data.categories}
-                onView={() => setDetailSheetId(subscription.id)}
-                onDelete={() => deleteSubscription(subscription.id)}
-              />
-            ))}
+            {isArchiveView
+              ? archivedSubscriptions.map((subscription) => (
+                  <ArchivedRow
+                    key={subscription.id}
+                    subscription={subscription}
+                    fxRates={fxRates}
+                    onView={() => setDetailSheetId(subscription.id)}
+                    onRestore={() => updateSubscriptionStatus(subscription.id, "active")}
+                    onDelete={() => deleteSubscription(subscription.id)}
+                  />
+                ))
+              : filteredSubscriptions.map((subscription) => (
+                  <SwipeDeleteRow
+                    key={subscription.id}
+                    subscription={subscription}
+                    fxRates={fxRates}
+                    categories={data.categories}
+                    onView={() => setDetailSheetId(subscription.id)}
+                    onArchive={() => updateSubscriptionStatus(subscription.id, "archived")}
+                    onDelete={() => deleteSubscription(subscription.id)}
+                  />
+                ))}
+
+            {isArchiveView && archivedSubscriptions.length === 0 && (
+              <EmptyArchiveHint />
+            )}
           </div>
         </div>
       </div>
@@ -180,14 +271,39 @@ export function SubscriptionsScreen() {
             <CardContent className="space-y-3 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[12px] text-[#a1a8b8]">Total due</div>
+                  <div className="text-[12px] text-[#a1a8b8]">
+                    {isArchiveView ? "Archiviert · gesamt ausgegeben" : "Total due"}
+                  </div>
                   <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
-                    {formatCurrency(totalDue, defaultCurrency)}
+                    {formatCurrency(
+                      isArchiveView ? archivedTotalSpent : totalDue,
+                      defaultCurrency,
+                    )}
                   </div>
                 </div>
                 <Button onClick={openCreateDialog} size="icon">
                   <Plus className="size-4" />
                 </Button>
+              </div>
+
+              <div className="flex gap-1 rounded-[14px] bg-[#f4f5f8] p-1">
+                {([
+                  { key: "active" as const, label: "Aktiv" },
+                  { key: "archived" as const, label: `Archiv${archivedCount > 0 ? ` (${archivedCount})` : ""}` },
+                ]).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setView(tab.key)}
+                    className={`flex-1 rounded-[11px] px-3 py-1.5 text-[12px] font-medium transition ${
+                      view === tab.key
+                        ? "bg-white text-[#4b5263] shadow-[0_6px_14px_-10px_rgba(15,23,42,0.35)]"
+                        : "text-[#98a1b2]"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
               <label className="relative block">
@@ -200,7 +316,7 @@ export function SubscriptionsScreen() {
                 />
               </label>
 
-              <div className="grid gap-2 xl:grid-cols-2">
+              <div className={`grid gap-2 xl:grid-cols-2 ${isArchiveView ? "hidden" : ""}`}>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="All categories" />
@@ -233,8 +349,11 @@ export function SubscriptionsScreen() {
           </Card>
 
           <div className="space-y-3">
-            {filteredSubscriptions.map((subscription) => {
+            {isArchiveView && visibleSubscriptions.length === 0 && <EmptyArchiveHint desktop />}
+
+            {visibleSubscriptions.map((subscription) => {
               const selected = effectiveSelectedId === subscription.id;
+              const archived = subscription.status === "archived";
               const eurCents =
                 subscription.currency !== "EUR"
                   ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
@@ -258,11 +377,19 @@ export function SubscriptionsScreen() {
                         <BrandAvatar
                           logoKey={subscription.logoKey}
                           name={subscription.name}
-                          className="size-12 rounded-[14px]"
+                          className={`size-12 rounded-[14px] ${archived ? "opacity-60 grayscale" : ""}`}
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[14px] font-semibold text-[#4b5263]">
-                            {subscription.name}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[14px] font-semibold text-[#4b5263]">
+                              {subscription.name}
+                            </span>
+                            {archived && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#f1f3f7] px-2 py-0.5 text-[10px] font-medium text-[#98a1b2]">
+                                <Archive className="size-2.5" />
+                                Archiviert
+                              </span>
+                            )}
                           </div>
                           <div className="mt-0.5 text-[12px] text-[#9ca3af]">
                             {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
@@ -275,11 +402,24 @@ export function SubscriptionsScreen() {
                         </div>
                         <div className="text-right">
                           <div className="flex items-center justify-end gap-1 text-[10px] text-[#b0b6c4]">
-                            <RotateCcw className="size-2.5" />
-                            <span>Next</span>
+                            {archived ? (
+                              <>
+                                <Archive className="size-2.5" />
+                                <span>Archiviert</span>
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="size-2.5" />
+                                <span>Next</span>
+                              </>
+                            )}
                           </div>
                           <div className="mt-0.5 text-[12px] text-[#a3aabd]">
-                            {formatDateLabel(subscription.nextDueDate)}
+                            {archived
+                              ? subscription.archivedAt
+                                ? formatDateLabel(subscription.archivedAt)
+                                : "—"
+                              : formatDateLabel(subscription.nextDueDate)}
                           </div>
                         </div>
                       </div>
@@ -318,12 +458,14 @@ function SwipeDeleteRow({
   fxRates,
   categories,
   onView,
+  onArchive,
   onDelete,
 }: {
   subscription: Subscription;
   fxRates: Record<string, number>;
   categories: Array<{ id: string; name: string; color: string }>;
   onView: () => void;
+  onArchive: () => void;
   onDelete: () => void;
 }) {
   const [offsetX, setOffsetX] = useState(0);
@@ -332,7 +474,7 @@ function SwipeDeleteRow({
   const startXRef = useRef(0);
   const startOffsetRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const REVEAL = 80;
+  const REVEAL = 160;
   const isOpen = offsetX <= -(REVEAL / 2);
 
   const category = categories.find((c) => c.id === subscription.categoryId);
@@ -365,15 +507,25 @@ function SwipeDeleteRow({
   return (
     <>
       <div ref={containerRef} className="relative overflow-hidden rounded-[16px]">
-        {/* Red delete zone — only visible on swipe */}
-        <div className="absolute inset-y-0 right-0 flex w-20 items-center justify-center rounded-r-[16px] bg-[#ef4444]">
+        {/* Archive + delete zone — only visible on swipe */}
+        <div className="absolute inset-y-0 right-0 flex w-40 items-center rounded-r-[16px] overflow-hidden">
+          <button
+            type="button"
+            aria-label={`Archive ${subscription.name}`}
+            className="flex size-full flex-col items-center justify-center gap-1 bg-[#64748b] text-[10px] font-medium text-white"
+            onClick={() => { onArchive(); setOffsetX(0); }}
+          >
+            <Archive className="size-5" />
+            Archiv
+          </button>
           <button
             type="button"
             aria-label={`Delete ${subscription.name}`}
-            className="flex size-full items-center justify-center"
+            className="flex size-full flex-col items-center justify-center gap-1 bg-[#ef4444] text-[10px] font-medium text-white"
             onClick={() => setConfirming(true)}
           >
-            <Trash2 className="size-5 text-white" />
+            <Trash2 className="size-5" />
+            Löschen
           </button>
         </div>
 
@@ -482,28 +634,162 @@ function SwipeDeleteRow({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Remove {subscription.name}?</DialogTitle>
+            <DialogTitle>{subscription.name} entfernen?</DialogTitle>
             <DialogDescription>
-              This will permanently delete this subscription and its payment history.
+              Löschen entfernt das Abo und seine Zahlungshistorie endgültig. Gekündigt?
+              Dann lieber archivieren — dann bleibt die Historie erhalten.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <Button
               variant="secondary"
               onClick={() => { setConfirming(false); setOffsetX(0); }}
             >
-              Cancel
+              Abbrechen
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { onArchive(); setConfirming(false); setOffsetX(0); }}
+            >
+              <Archive className="size-3.5" />
+              Archivieren
             </Button>
             <Button
               variant="destructive"
               onClick={() => { onDelete(); setConfirming(false); }}
             >
-              Delete
+              Endgültig löschen
             </Button>
           </div>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function ArchivedRow({
+  subscription,
+  fxRates,
+  onView,
+  onRestore,
+  onDelete,
+}: {
+  subscription: Subscription;
+  fxRates: Record<string, number>;
+  onView: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const eurCents =
+    subscription.currency !== "EUR"
+      ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
+      : null;
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-3 rounded-[16px] px-4 py-3"
+        style={{
+          background: "var(--surface)",
+          border: "1px dashed var(--border)",
+          minHeight: 68,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onView}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <BrandAvatar
+            logoKey={subscription.logoKey}
+            name={subscription.name}
+            className="size-11 shrink-0 rounded-[10px] opacity-60 grayscale"
+          />
+          <div className="min-w-0 flex-1">
+            <div
+              className="truncate text-[15px] font-semibold leading-snug"
+              style={{ color: "var(--sub)" }}
+            >
+              {subscription.name}
+            </div>
+            <div className="mt-1 text-[11px]" style={{ color: "var(--sub)", opacity: 0.8 }}>
+              {formatCurrency(subscription.amountCents, subscription.currency)}
+              {eurCents !== null && ` · ${formatCurrency(eurCents, "EUR")}`}
+              {subscription.archivedAt
+                ? ` · archiviert ${formatDateLabel(subscription.archivedAt)}`
+                : " · archiviert"}
+            </div>
+          </div>
+        </button>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            aria-label={`${subscription.name} reaktivieren`}
+            onClick={onRestore}
+            className="sl-tap-target flex size-9 items-center justify-center rounded-[10px]"
+            style={{ background: "var(--surface-2)", color: "var(--text)" }}
+          >
+            <ArchiveRestore className="size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={`${subscription.name} endgültig löschen`}
+            onClick={() => setConfirming(true)}
+            className="sl-tap-target flex size-9 items-center justify-center rounded-[10px]"
+            style={{ background: "rgba(239,68,68,0.10)", color: "#ef4444" }}
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      <Dialog open={confirming} onOpenChange={(open) => { if (!open) setConfirming(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{subscription.name} endgültig löschen?</DialogTitle>
+            <DialogDescription>
+              Das Abo und seine komplette Zahlungshistorie werden entfernt. Das lässt sich
+              nicht rückgängig machen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setConfirming(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { onDelete(); setConfirming(false); }}
+            >
+              Endgültig löschen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function EmptyArchiveHint({ desktop = false }: { desktop?: boolean }) {
+  // The mobile screens run on the themed CSS tokens, the desktop grid on the card palette.
+  const surface = desktop
+    ? { background: "#ffffff", border: "1px dashed #e4e7ee" }
+    : { background: "var(--surface)", border: "1px dashed var(--border)" };
+  const titleColor = desktop ? "#4b5263" : "var(--text)";
+  const subColor = desktop ? "#98a1b2" : "var(--sub)";
+
+  return (
+    <div className="rounded-[16px] px-5 py-8 text-center" style={surface}>
+      <Archive className="mx-auto size-6" style={{ color: subColor, opacity: 0.6 }} />
+      <div className="mt-3 text-[14px] font-semibold" style={{ color: titleColor }}>
+        Noch nichts im Archiv
+      </div>
+      <p className="mx-auto mt-1.5 max-w-[260px] text-[12px] leading-snug" style={{ color: subColor }}>
+        Gekündigte Abos hier ablegen: Sie verschwinden aus Summen, Liste und Kalender,
+        die Zahlungshistorie bleibt aber erhalten.
+      </p>
+    </div>
   );
 }
 

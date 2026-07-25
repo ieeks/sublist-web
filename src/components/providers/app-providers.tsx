@@ -57,7 +57,14 @@ function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function normalizeSubscription(subscription: Subscription): Subscription {
+  // Archived subscriptions freeze their due date at the moment they were archived.
+  if (subscription.status === "archived") return subscription;
+
   return {
     ...subscription,
     nextDueDate: calculateNextDueDate(
@@ -65,6 +72,24 @@ function normalizeSubscription(subscription: Subscription): Subscription {
       subscription.billingCycle,
     ),
   };
+}
+
+/** Keeps `archivedAt` in sync with the status — set on archive, dropped on restore. */
+function applyStatus(
+  subscription: Subscription,
+  status: SubscriptionStatus,
+): Subscription {
+  if (status === "archived") {
+    return {
+      ...subscription,
+      status,
+      archivedAt: subscription.archivedAt ?? today(),
+    };
+  }
+
+  const restored = { ...subscription, status };
+  delete restored.archivedAt;
+  return normalizeSubscription(restored);
 }
 
 const REMOVED_PAYMENT_METHOD_IDS = new Set(["amex-gold", "n26-virtual"]);
@@ -124,7 +149,12 @@ function buildPaymentHistoryForSubscription(
 }
 
 function draftToSubscription(draft: SubscriptionDraft): Subscription {
+  // Firestore rejects `undefined`, so the key is only present while archived.
+  const archived =
+    draft.status === "archived" ? { archivedAt: draft.archivedAt ?? today() } : {};
+
   return {
+    ...archived,
     id:
       draft.id ??
       draft.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") ??
@@ -272,14 +302,28 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       updateSubscriptionStatus: (subscriptionId, status) => {
-        mutate((current) => ({
-          ...current,
-          subscriptions: current.subscriptions.map((subscription) =>
-            subscription.id === subscriptionId
-              ? { ...subscription, status }
-              : subscription,
-          ),
-        }));
+        mutate((current) => {
+          const target = current.subscriptions.find(
+            (subscription) => subscription.id === subscriptionId,
+          );
+          if (!target) return current;
+
+          const updated = applyStatus(target, status);
+
+          return {
+            ...current,
+            subscriptions: current.subscriptions.map((subscription) =>
+              subscription.id === subscriptionId ? updated : subscription,
+            ),
+            // Archiving cuts the timeline at the archive date, restoring rebuilds it.
+            paymentHistory: [
+              ...current.paymentHistory.filter(
+                (entry) => entry.subscriptionId !== subscriptionId,
+              ),
+              ...buildPaymentHistoryForSubscription(updated),
+            ],
+          };
+        });
       },
       updateSettings: (settings) => {
         mutate((current) => ({
