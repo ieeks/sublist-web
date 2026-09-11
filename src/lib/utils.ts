@@ -1,18 +1,18 @@
 import { clsx, type ClassValue } from "clsx";
 import {
   addMonths,
-  addQuarters,
-  addYears,
   differenceInCalendarDays,
   endOfMonth,
   format,
   isAfter,
   isBefore,
-  isSameDay,
   startOfDay,
   startOfMonth,
 } from "date-fns";
 import { twMerge } from "tailwind-merge";
+
+import { convertCurrency } from "./currencies";
+import { parseDate } from "./validation";
 
 import type { BillingCycle, PaymentHistoryItem, Subscription } from "@/lib/types";
 
@@ -34,51 +34,46 @@ export function toMonthlyAmount(amountCents: number, billingCycle: BillingCycle)
   return Math.round(amountCents / 12);
 }
 
-export function advanceDate(date: Date, billingCycle: BillingCycle) {
-  if (billingCycle === "monthly") return addMonths(date, 1);
-  if (billingCycle === "quarterly") return addQuarters(date, 1);
-  return addYears(date, 1);
+export function advanceDate(date: Date, billingCycle: BillingCycle, periods = 1) {
+  const months = { monthly: 1, quarterly: 3, yearly: 12 }[billingCycle];
+  if (!months) throw new Error("Ungültiger Abrechnungszyklus.");
+  return addMonths(date, months * periods);
 }
 
-export function calculateNextDueDate(startDate: string, billingCycle: BillingCycle) {
-  const today = startOfDay(new Date());
-  let cursor = startOfDay(new Date(startDate));
-
-  while (!isAfter(cursor, today) && !isSameDay(cursor, today)) {
-    cursor = advanceDate(cursor, billingCycle);
-  }
-
+export function calculateNextDueDate(startDate: string, billingCycle: BillingCycle, now = new Date()) {
+  const today = startOfDay(now);
+  const anchor = parseDate(startDate);
+  let cursor = anchor;
+  let period = 0;
+  while (isBefore(cursor, today)) cursor = advanceDate(anchor, billingCycle, ++period);
   return format(cursor, "yyyy-MM-dd");
 }
 
-export function buildPaymentTimeline(subscription: Subscription, maxItems = 18) {
-  const today = startOfDay(new Date());
-  // Archived subscriptions stop generating payments on the day they were archived.
-  const archivedAt = subscription.archivedAt
-    ? startOfDay(new Date(subscription.archivedAt))
-    : null;
+/** Scheduled estimates, not bank-confirmed payments. Always retain the original billing day. */
+export function buildPaymentTimeline(subscription: Subscription, maxItems = Infinity, now = new Date()) {
+  const today = startOfDay(now);
+  const archivedAt = subscription.archivedAt ? parseDate(subscription.archivedAt) : null;
   const lastDate = archivedAt && isBefore(archivedAt, today) ? archivedAt : today;
   const items: Array<{ date: string; amountCents: number }> = [];
-  let cursor = startOfDay(new Date(subscription.startDate));
-
-  while ((isBefore(cursor, lastDate) || isSameDay(cursor, lastDate)) && items.length < maxItems) {
-    items.push({
-      date: format(cursor, "yyyy-MM-dd"),
-      amountCents: subscription.amountCents,
-    });
-    cursor = advanceDate(cursor, subscription.billingCycle);
+  const anchor = parseDate(subscription.startDate);
+  let cursor = anchor;
+  let period = 0;
+  while (!isAfter(cursor, lastDate) && items.length < maxItems) {
+    items.push({ date: format(cursor, "yyyy-MM-dd"), amountCents: subscription.amountCents });
+    cursor = advanceDate(anchor, subscription.billingCycle, ++period);
   }
-
   return items;
 }
 
 export function summarizeTotalSpent(
   subscriptionId: string,
   paymentHistory: PaymentHistoryItem[],
+  currency?: string,
+  rates: Record<string, number> = {},
 ) {
   return paymentHistory
     .filter((entry) => entry.subscriptionId === subscriptionId)
-    .reduce((total, entry) => total + entry.amountCents, 0);
+    .reduce((total, entry) => total + (currency ? convertCurrency(entry.amountCents, entry.currency, currency, rates) : entry.amountCents), 0);
 }
 
 export function daysUntil(date: string) {

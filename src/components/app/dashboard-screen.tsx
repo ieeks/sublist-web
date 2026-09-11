@@ -21,7 +21,7 @@ export function DashboardScreen() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const subscriptions = useMemo(
-    () => data.subscriptions.filter((item) => item.status !== "archived"),
+    () => data.subscriptions.filter((item) => item.status === "active"),
     [data.subscriptions],
   );
   const selectedId = searchParams.get("subscription") ?? undefined;
@@ -39,10 +39,6 @@ export function DashboardScreen() {
   }
 
   const defaultCurrency = data.settings.defaultCurrency;
-  const totalDue = subscriptions.reduce(
-    (sum, item) => sum + convertCurrency(item.amountCents, item.currency, defaultCurrency, fxRates),
-    0,
-  );
   const averagePerMonth = subscriptions.reduce(
     (sum, item) =>
       sum + convertCurrency(toMonthlyAmount(item.amountCents, item.billingCycle), item.currency, defaultCurrency, fxRates),
@@ -67,7 +63,7 @@ export function DashboardScreen() {
     }))
     .filter((item) => item.value > 0)
     .sort((left, right) => right.value - left.value)
-    .slice(0, 4);
+;
 
   const paymentBreakdown = data.paymentMethods
     .map((method) => ({
@@ -83,7 +79,7 @@ export function DashboardScreen() {
     }))
     .filter((item) => item.value > 0)
     .sort((left, right) => right.value - left.value)
-    .slice(0, 4);
+;
 
   const maxCategory = Math.max(...categoryBreakdown.map((item) => item.value), 1);
   const maxPayment = Math.max(...paymentBreakdown.map((item) => item.value), 1);
@@ -253,8 +249,8 @@ export function DashboardScreen() {
           <div>
           <div className="grid grid-cols-3 gap-4">
             <MetricCard
-              label="Total due"
-              value={formatCurrency(totalDue, defaultCurrency)}
+              label="Monthly estimate"
+              value={formatCurrency(averagePerMonth, defaultCurrency)}
             />
             <MetricCard
               label="Average per month"
@@ -294,7 +290,7 @@ export function DashboardScreen() {
                           {subscription.name}
                         </div>
                         <div className="mt-0.5 text-[11px] text-[#8b95a7]">
-                          {formatCurrency(subscription.amountCents, subscription.currency)} · /mo
+                          {formatCurrency(subscription.amountCents, subscription.currency)} · {subscription.billingCycle === "monthly" ? "/mo" : subscription.billingCycle === "quarterly" ? "/quarter" : "/year"}
                         </div>
                       </div>
                     </div>
@@ -492,7 +488,6 @@ function MobileDonutChart({
   const circumference = 2 * Math.PI * r;
   const GAP = 3;
 
-  let cumulativeAngle = -90;
 
   return (
     <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
@@ -506,11 +501,10 @@ function MobileDonutChart({
           strokeWidth={strokeWidth}
           stroke="rgba(255,255,255,0.05)"
         />
-        {data.map((segment) => {
+        {data.map((segment, index) => {
           const segProportion = segment.value / Math.max(total, 1);
           const dashLength = Math.max(0, segProportion * circumference - GAP);
-          const angle = cumulativeAngle;
-          cumulativeAngle += segProportion * 360;
+          const angle = -90 + data.slice(0, index).reduce((sum, item) => sum + item.value, 0) / Math.max(total, 1) * 360;
           return (
             <circle
               key={segment.name}

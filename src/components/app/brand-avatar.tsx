@@ -51,7 +51,7 @@ function resolveSlug(key: string): string {
   return SLUG_ALIASES[key] ?? SLUG_ALIASES[key.replace(/-/g, "")] ?? key.replace(/-/g, "") ?? key;
 }
 
-export function BrandAvatar({
+function BrandAvatarContent({
   logoKey,
   name,
   className,
@@ -78,8 +78,6 @@ export function BrandAvatar({
   useEffect(() => {
     if (!needsFallback || !logoKey) return;
     let cancelled = false;
-    setSimpleIcon(null);
-    setSvglFallbackSrc(null);
 
     (async () => {
       // Try simple-icons
@@ -133,4 +131,8 @@ export function BrandAvatar({
       {name.slice(0, 2).toUpperCase()}
     </div>
   );
+}
+
+export function BrandAvatar(props: Parameters<typeof BrandAvatarContent>[0]) {
+  return <BrandAvatarContent key={`${props.logoKey}:${props.name}`} {...props} />;
 }

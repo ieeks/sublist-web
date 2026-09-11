@@ -22,7 +22,7 @@ export function MobileDetailSheet({
   onClose,
   onEdit,
 }: MobileDetailSheetProps) {
-  const { data, deleteSubscription, updateSubscriptionStatus } = useAppData();
+  const { data, fxRates, deleteSubscription, updateSubscriptionStatus } = useAppData();
   const subscription = data.subscriptions.find((s) => s.id === subscriptionId);
   // Tracked by id so the confirmation resets when the sheet switches subscription or closes.
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | undefined>();
@@ -36,10 +36,10 @@ export function MobileDetailSheet({
     .filter((e) => e.subscriptionId === subscription.id)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 7);
-  const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
+  const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory, subscription.currency, fxRates);
   const daysLeft = daysUntil(subscription.nextDueDate);
   const isArchived = subscription.status === "archived";
-  const isUrgent = !isArchived && daysLeft <= 7;
+  const isUrgent = subscription.status === "active" && daysLeft <= 7;
 
   const cycleLabel =
     subscription.billingCycle === "monthly"
@@ -106,7 +106,7 @@ export function MobileDetailSheet({
                   : "—"}
               </span>
             </InfoRow>
-          ) : (
+          ) : subscription.status === "paused" ? <InfoRow label="Status">Pausiert</InfoRow> : (
             <InfoRow label="Next payment">
               <span style={{ color: isUrgent ? "#f97316" : "var(--text)", fontWeight: 600 }}>
                 {isUrgent && "⚡ "}
@@ -125,7 +125,7 @@ export function MobileDetailSheet({
               <span className="font-medium text-[var(--text)]">{paymentMethod.name}</span>
             </InfoRow>
           )}
-          <InfoRow label="Total spent">
+          <InfoRow label="Estimated total spent">
             <span className="font-medium text-[var(--text)]">
               {formatCurrency(totalSpent, subscription.currency)}
             </span>

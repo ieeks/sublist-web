@@ -104,12 +104,7 @@ function useFormState(subscription?: Subscription) {
   >([]);
 
   useEffect(() => {
-    setDraft(toDraft(subscription));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscription?.id]);
-
-  useEffect(() => {
-    if (!iconSearch.trim()) { setIconResults([]); return; }
+    if (!iconSearch.trim()) return;
     let cancelled = false;
 
     (async () => {
@@ -143,13 +138,11 @@ function useFormState(subscription?: Subscription) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
-  function submit(onDone: () => void) {
-    if (!draft.name || !draft.amount) return;
-    addOrUpdateSubscription(draft);
-    onDone();
+  async function submit(onDone: () => void) {
+    if (await addOrUpdateSubscription(draft, subscription)) onDone();
   }
 
-  return { data, draft, update, submit, iconSearch, setIconSearch, iconResults };
+  return { data, draft, update, submit, iconSearch, setIconSearch, iconResults: iconSearch.trim() ? iconResults : [] };
 }
 
 // ── Mobile-only detect ────────────────────────────────────────────────────────
@@ -399,6 +392,8 @@ function MobileFormBody({
         <FieldRow label="Startdatum" border>
           <input
             type="date"
+            required
+            min="1900-01-01"
             value={draft.startDate}
             onChange={(e) => update('startDate', e.target.value)}
             style={{
@@ -668,6 +663,8 @@ function DesktopFormBody({
               <span className="text-sm font-medium text-[#475569]">Start date</span>
               <Input
                 type="date"
+            required
+            min="1900-01-01"
                 value={draft.startDate}
                 onChange={(event) => update("startDate", event.target.value)}
               />

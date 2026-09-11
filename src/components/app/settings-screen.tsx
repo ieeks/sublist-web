@@ -142,8 +142,8 @@ export function SettingsScreen() {
   const currencyTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Notification state (local placeholder — no backend yet)
-  const [notify3days, setNotify3days] = useState(true);
-  const [notifyOnDay, setNotifyOnDay] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  function openImport() { fileInputRef.current?.click(); }
 
   // Category summary derived from actual state
   const catSummary = useMemo(() => {
@@ -245,12 +245,7 @@ export function SettingsScreen() {
 
       {/* ── Benachrichtigungen ── */}
       <Group title="Benachrichtigungen">
-        <Row label="3 Tage vorher" onClick={() => setNotify3days((v) => !v)}>
-          <Toggle on={notify3days} onToggle={() => setNotify3days((v) => !v)} />
-        </Row>
-        <Row label="Am Verlängerungstag" last onClick={() => setNotifyOnDay((v) => !v)}>
-          <Toggle on={notifyOnDay} onToggle={() => setNotifyOnDay((v) => !v)} />
-        </Row>
+        <Row label="Erinnerungen" last><span className="text-xs">Noch nicht verfügbar</span></Row>
       </Group>
 
       {/* ── Daten ── */}
@@ -268,12 +263,6 @@ export function SettingsScreen() {
             color:  T.accent,
             action: () => triggerDownload('payment-history.csv', paymentHistoryToCsv(data.paymentHistory)),
           },
-          {
-            label:  'CSV importieren',
-            icon:   FolderUp,
-            color:  '#f97316',
-            action: () => fileInputRef.current?.click(),
-          },
         ].map(({ label, icon: Icon, color, action }, i, arr) => (
           <div
             key={label}
@@ -288,8 +277,12 @@ export function SettingsScreen() {
             <span style={{ fontSize: 15, fontWeight: 500, color }}>{label}</span>
           </div>
         ))}
+        <button type="button" onClick={openImport} className="flex w-full items-center gap-3 border-t border-[var(--border)] px-4 py-3 text-left text-orange-500">
+          <FolderUp size={18} /> CSV importieren (ergänzen)
+        </button>
       </Group>
 
+      {importMessage && <p role="status" className="p-3 text-sm">{importMessage}</p>}
       {/* Hidden file input for CSV import */}
       <input
         ref={fileInputRef}
@@ -299,9 +292,14 @@ export function SettingsScreen() {
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          const content = await file.text();
-          importSubscriptions(parseSubscriptionsCsv(content));
-          e.target.value = '';
+          try {
+            if (file.size > 2_000_000) throw new Error('Die CSV-Datei ist zu groß (max. 2 MB).');
+            const rows = parseSubscriptionsCsv(await file.text());
+            const duplicates = rows.filter(row => row.id && data.subscriptions.some(s => s.id === row.id)).length;
+            if (!window.confirm(`${rows.length} Abos gelesen. Vorhandene IDs werden übersprungen (${duplicates} aktuell). Neue Abos ergänzen?`)) return;
+            if (await importSubscriptions(rows)) setImportMessage('Import abgeschlossen. Vorhandene Abos wurden beibehalten.');
+          } catch (error) { setImportMessage((error as Error).message); }
+          finally { e.target.value = ''; }
         }}
       />
     </div>

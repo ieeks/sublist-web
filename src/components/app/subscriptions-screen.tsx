@@ -118,7 +118,7 @@ export function SubscriptionsScreen() {
 
   const defaultCurrency = data.settings.defaultCurrency;
 
-  const totalDue = filteredSubscriptions.reduce(
+  const totalDue = filteredSubscriptions.filter(s => s.status === "active").reduce(
     (sum, sub) => sum + convertCurrency(toMonthlyAmount(sub.amountCents, sub.billingCycle), sub.currency, defaultCurrency, fxRates),
     0,
   );
@@ -127,7 +127,7 @@ export function SubscriptionsScreen() {
     (sum, sub) =>
       sum +
       convertCurrency(
-        summarizeTotalSpent(sub.id, data.paymentHistory),
+        summarizeTotalSpent(sub.id, data.paymentHistory, sub.currency, fxRates),
         sub.currency,
         defaultCurrency,
         fxRates,
@@ -156,7 +156,7 @@ export function SubscriptionsScreen() {
               <div className="text-[13px] mt-0.5" style={{ color: "var(--sub)" }}>
                 {isArchiveView ? (
                   <>
-                    {archivedCount} archiviert · ausgegeben:{" "}
+                    {archivedCount} archiviert · geschätzt:{" "}
                     <span className="font-semibold" style={{ color: "var(--text)" }}>
                       {formatCurrency(archivedTotalSpent, defaultCurrency)}
                     </span>
@@ -272,7 +272,7 @@ export function SubscriptionsScreen() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[12px] text-[#a1a8b8]">
-                    {isArchiveView ? "Archiviert · gesamt ausgegeben" : "Total due"}
+                    {isArchiveView ? "Archiviert · geschätzt ausgegeben" : "Total due"}
                   </div>
                   <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
                     {formatCurrency(

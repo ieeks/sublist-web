@@ -20,7 +20,7 @@ export function SubscriptionDetail({
   onEdit: () => void;
   onClose?: () => void;
 }) {
-  const { data, deleteSubscription, updateSubscriptionStatus } = useAppData();
+  const { data, fxRates, deleteSubscription, updateSubscriptionStatus } = useAppData();
   const subscription = data.subscriptions.find((item) => item.id === subscriptionId);
   // Tracked by id so the confirmation resets when another subscription is selected.
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | undefined>();
@@ -43,7 +43,7 @@ export function SubscriptionDetail({
   const history = data.paymentHistory
     .filter((entry) => entry.subscriptionId === subscription.id)
     .sort((left, right) => right.date.localeCompare(left.date));
-  const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory);
+  const totalSpent = summarizeTotalSpent(subscription.id, data.paymentHistory, subscription.currency, fxRates);
   const isArchived = subscription.status === "archived";
 
   return (
@@ -164,7 +164,7 @@ export function SubscriptionDetail({
               />
             )}
             <DetailRow
-              label="Total spent"
+              label="Estimated total spent"
               value={formatCurrency(totalSpent, subscription.currency)}
             />
           </div>
