@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import type { AppData, Subscription, SubscriptionDraft, SubscriptionStatus } from './types';
 import { buildPaymentTimeline, calculateNextDueDate } from './utils';
-import { parseAmount, validateDraft } from './validation';
+import { parseAmount, validateDraft, subscriptionDateError } from './validation';
 
 export function draftToSubscription(draft: SubscriptionDraft): Subscription {
   validateDraft(draft);
@@ -22,6 +22,7 @@ export function refreshHistory(data: AppData, now = new Date()): AppData {
   const today = format(now, 'yyyy-MM-dd');
   const history = [...data.paymentHistory];
   const subscriptions = data.subscriptions.map(sub => {
+    if (subscriptionDateError(sub)) return sub;
     const existing = history.filter(entry => entry.subscriptionId === sub.id);
     // Legacy paused subscriptions have no reliable pause date: retain their existing history.
     if (sub.status !== 'paused') {
@@ -61,8 +62,10 @@ export function upsertSubscription(current: AppData, next: Subscription, previou
       if (target[field] !== previous[field] && target[field] !== next[field]) throw new Error('Dieses Abo wurde inzwischen geändert. Bitte schließen und erneut öffnen.');
       Object.assign(updated, { [field]: next[field] });
     }
+    // Keep the checkpoint even when the start date/cycle changes: retroactive edits
+    // do not backfill older estimates or rewrite amounts. This is explained in the form.
     // Never re-label old payments after a currency change.
-    updated.historyThrough = target.historyThrough;
+    if (target.historyThrough) updated.historyThrough = target.historyThrough;
     if (updated.status !== target.status) updated = changeStatus(updated, updated.status, now);
     if (updated.archivedAt === undefined) delete updated.archivedAt;
   } else if (target) {

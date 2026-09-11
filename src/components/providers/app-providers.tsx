@@ -13,6 +13,8 @@ import {
 import { doc, onSnapshot, runTransaction } from "firebase/firestore";
 
 import { AuthGate } from "@/components/providers/auth-gate";
+import { assertDocumentFits, estimatedDocumentBytes } from "@/lib/document-size";
+import { subscriptionDateError } from "@/lib/validation";
 import { emptyAppData } from "@/data/seed";
 import { db } from "@/lib/firebase";
 import { migrateFromLocalStorageIfNeeded } from "@/lib/migrate";
@@ -36,7 +38,7 @@ type AppContextValue = {
   saving: boolean;
   error: string | null;
   fxRates: Record<string, number>;
-  addOrUpdateSubscription: (draft: SubscriptionDraft, previous?: Subscription) => Promise<boolean>;
+  addOrUpdateSubscription: (draft: SubscriptionDraft, previous?: Subscription) => Promise<{ ok: true } | { ok: false; error: string }>;
   deleteSubscription: (subscriptionId: string) => Promise<boolean>;
   updateSubscriptionStatus: (
     subscriptionId: string,
@@ -113,6 +115,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const initializedRef = useRef(false);
   const savingRef = useRef(false);
@@ -148,21 +151,24 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // Read the latest server version on every write. Firestore retries concurrent changes.
   // No side effects inside React state updaters and no offline overwrite queue.
-  const mutate = useCallback(async (updater: (current: AppData) => AppData): Promise<boolean> => {
-    if (!initializedRef.current) { setError("Bitte warten, bis die Daten erfolgreich geladen wurden."); return false; }
-    if (savingRef.current) return false;
+  const mutate = useCallback(async (updater: (current: AppData) => AppData, reportError: (message: string | null) => void = setActionError, refresh = true): Promise<boolean> => {
+    if (!initializedRef.current) { reportError("Bitte warten, bis die Daten erfolgreich geladen wurden."); return false; }
+    if (savingRef.current) { reportError("Ein Speichervorgang läuft bereits. Bitte kurz warten."); return false; }
     savingRef.current = true;
     setSaving(true);
-    setError(null);
+    reportError(null);
     try {
       await runTransaction(db, async transaction => {
         const snap = await transaction.get(FIRESTORE_REF);
-        const current = normalizeData(snap.exists() ? snap.data() as AppData : emptyAppData());
-        transaction.set(FIRESTORE_REF, updater(current));
+        const stored = snap.exists() ? snap.data() as AppData : emptyAppData();
+        const current = refresh ? normalizeData(stored) : normalizePaymentMethods(stored);
+        const next = updater(current);
+        assertDocumentFits(next, stored);
+        transaction.set(FIRESTORE_REF, next);
       });
       return true;
     } catch (cause) {
-      setError(cause instanceof Error ? `Nicht gespeichert: ${cause.message}` : "Speichern fehlgeschlagen. Bitte erneut versuchen.");
+      reportError(cause instanceof Error ? `Nicht gespeichert: ${cause.message}` : "Speichern fehlgeschlagen. Bitte erneut versuchen.");
       return false;
     } finally {
       savingRef.current = false;
@@ -189,10 +195,11 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       addOrUpdateSubscription: async (draft, previous) => {
         try {
           const subscription = draftToSubscription(draft);
-          return mutate(current => upsertSubscription(current, subscription, previous));
+          let message = "Speichern fehlgeschlagen.";
+          const ok = await mutate(current => upsertSubscription(current, subscription, previous), value => { if (value) message = value; });
+          return ok ? { ok: true } : { ok: false, error: message };
         } catch (cause) {
-          setError((cause as Error).message);
-          return false;
+          return { ok: false, error: (cause as Error).message };
         }
       },
       deleteSubscription: (subscriptionId) => {
@@ -204,7 +211,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           paymentHistory: current.paymentHistory.filter(
             (entry) => entry.subscriptionId !== subscriptionId,
           ),
-        }));
+        }), setActionError, false);
       },
       updateSubscriptionStatus: (subscriptionId, status) => {
         return mutate((current) => {
@@ -268,14 +275,17 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           if (!rows.length) throw new Error("Die Datei enthält keine Abos.");
           const imported = rows.map(draftToSubscription);
           return mutate(current => mergeSubscriptions(current, imported));
-        } catch (cause) { setError((cause as Error).message); return false; }
+        } catch (cause) { setActionError((cause as Error).message); return false; }
       },
     }),
     [data, ready, saving, error, fxRates, mutate],
   );
 
   return <AppContext.Provider value={value}>
-    {error && <div role="alert" className="fixed inset-x-0 top-0 z-[100] bg-red-100 p-3 text-center text-sm text-red-900">{error} <button type="button" className="underline" onClick={() => window.location.reload()}>Neu laden</button></div>}
+    {error && <div role="alert" className="fixed inset-x-0 top-0 z-[100] bg-red-100 p-3 text-center text-sm text-red-900">{error} <button type="button" className="underline" onClick={() => window.location.reload()}>Neu laden</button> <button type="button" onClick={() => setError(null)}>Schließen</button></div>}
+    {actionError && <div role="alert" className="fixed inset-x-0 bottom-20 z-[100] bg-red-100 p-3 text-center text-sm text-red-900">{actionError} <button type="button" onClick={() => setActionError(null)}>Schließen</button></div>}
+    {ready && data.subscriptions.some(sub => subscriptionDateError(sub)) && <p role="status" className="bg-amber-100 p-3 text-sm text-amber-900">Einige Abos haben ungültige Datumswerte. Bitte in der Abo-Liste bearbeiten. Bis dahin werden dafür keine neuen Zahlungen berechnet.</p>}
+    {ready && estimatedDocumentBytes(data) > 850_000 && <p role="status" className="bg-amber-100 p-3 text-sm text-amber-900">Der Speicher wird knapp. Bitte Abos und Historie exportieren; nicht mehr benötigte Abos können weiterhin gelöscht werden.</p>}
     {saving && <div role="status" className="fixed right-3 top-3 z-[100] rounded bg-[var(--surface)] p-2 text-sm">Wird gespeichert …</div>}
     {ready ? children : <div role="status" className="p-8 text-center">Daten werden geladen …</div>}
   </AppContext.Provider>;

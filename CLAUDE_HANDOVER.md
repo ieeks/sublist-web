@@ -124,3 +124,11 @@ src/
 - **Tailwind v4:** kein `tailwind.config.ts`, Konfiguration liegt in `globals.css`.
 - Bei Route-/Asset-Änderungen `basePath`-Kompatibilität nicht brechen.
 - `.env.local` ist in `.gitignore` — niemals committen.
+
+## Review-Nacharbeit
+
+25 Regressionstests. Formularfehler lokal, Lade-/Aktionsfehler getrennt und schließbar.
+Beschädigte Bestandsdaten bleiben bearbeitbar, keine Historiengenerierung bis zur
+Datumskorrektur. Speicherwarnung/Write-Prüfung in `document-size.ts`; Löschpfad ohne
+History-Refresh, damit Speicherbereinigung möglich bleibt. Kleine Donut-Aufschlüsselung
+mit Top 4 + Sonstige. Details und bewusste `historyThrough`-Semantik in README.

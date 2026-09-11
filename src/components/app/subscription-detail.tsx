@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
 import { Archive, ArchiveRestore, Pencil, PauseCircle, Share2, Trash2, X } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
@@ -9,7 +8,7 @@ import { useAppData } from "@/components/providers/app-providers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatCurrency, summarizeTotalSpent } from "@/lib/utils";
+import { formatCurrency, formatStoredDate, summarizeTotalSpent } from "@/lib/utils";
 
 export function SubscriptionDetail({
   subscriptionId,
@@ -82,7 +81,7 @@ export function SubscriptionDetail({
                 <Archive className="size-3" />
                 Archiviert
                 {subscription.archivedAt
-                  ? ` · ${format(new Date(subscription.archivedAt), "MMM d, yyyy")}`
+                  ? ` · ${formatStoredDate(subscription.archivedAt, "MMM d, yyyy")}`
                   : ""}
               </div>
             )}
@@ -146,21 +145,21 @@ export function SubscriptionDetail({
             <DetailRow label="Rewards" value={subscription.rewards || "None"} />
             <DetailRow
               label="Start date"
-              value={format(new Date(subscription.startDate), "MMM d, yyyy")}
+              value={formatStoredDate(subscription.startDate, "MMM d, yyyy")}
             />
             {isArchived ? (
               <DetailRow
                 label="Archived on"
                 value={
                   subscription.archivedAt
-                    ? format(new Date(subscription.archivedAt), "MMM d, yyyy")
+                    ? formatStoredDate(subscription.archivedAt, "MMM d, yyyy")
                     : "—"
                 }
               />
-            ) : (
+            ) : subscription.status === "paused" ? <DetailRow label="Status" value="Pausiert" /> : (
               <DetailRow
                 label="Next due"
-                value={format(new Date(subscription.nextDueDate), "MMM d")}
+                value={formatStoredDate(subscription.nextDueDate, "MMM d")}
               />
             )}
             <DetailRow
@@ -191,7 +190,7 @@ export function SubscriptionDetail({
                           {paymentMethod?.name ?? "Payment"}
                         </div>
                         <div className="text-[11px] text-[#9ba5b5]">
-                          {format(new Date(item.date), "MMM d")}
+                          {formatStoredDate(item.date, "MMM d")}
                         </div>
                       </div>
                     </div>

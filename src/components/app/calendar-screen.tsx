@@ -5,6 +5,7 @@ import { parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { subscriptionDateError } from "@/lib/validation";
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { MobileDetailSheet } from "@/components/app/mobile-detail-sheet";
 import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialog";
@@ -69,7 +70,7 @@ function buildCalEvents(
   month: number,
 ): Record<number, Subscription[]> {
   return subscriptions
-    .filter((s) => s.status === 'active')
+    .filter((s) => s.status === 'active' && !subscriptionDateError(s))
     .reduce<Record<number, Subscription[]>>((map, sub) => {
       for (const day of getOccurrenceDays(sub, year, month)) {
         map[day] = [...(map[day] ?? []), sub];

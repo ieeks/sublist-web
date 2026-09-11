@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { useAppData } from "@/components/providers/app-providers";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { daysUntil, formatCurrency, summarizeTotalSpent } from "@/lib/utils";
+import { daysUntil, formatCurrency, formatStoredDate, summarizeTotalSpent } from "@/lib/utils";
 
 interface MobileDetailSheetProps {
   subscriptionId?: string;
@@ -102,7 +101,7 @@ export function MobileDetailSheet({
             <InfoRow label="Archiviert am">
               <span className="font-medium text-[var(--text)]">
                 {subscription.archivedAt
-                  ? format(new Date(subscription.archivedAt), "d. MMM yyyy")
+                  ? formatStoredDate(subscription.archivedAt, "d. MMM yyyy")
                   : "—"}
               </span>
             </InfoRow>
@@ -110,7 +109,7 @@ export function MobileDetailSheet({
             <InfoRow label="Next payment">
               <span style={{ color: isUrgent ? "#f97316" : "var(--text)", fontWeight: 600 }}>
                 {isUrgent && "⚡ "}
-                {format(new Date(subscription.nextDueDate), "MMM d")}
+                {formatStoredDate(subscription.nextDueDate, "MMM d")}
                 <span className="ml-1 text-[12px] font-normal" style={{ color: isUrgent ? "#f97316" : "var(--sub)" }}>
                   {daysLeft === 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `in ${daysLeft}d`}
                 </span>
@@ -157,7 +156,7 @@ export function MobileDetailSheet({
                       }}
                     />
                     <span className="text-[9px] text-[var(--sub)]">
-                      {format(new Date(item.date), "MMM")}
+                      {formatStoredDate(item.date, "MMM")}
                     </span>
                   </div>
                 );

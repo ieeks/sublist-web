@@ -86,3 +86,9 @@ export function monthBounds(date = new Date()) {
     end: endOfMonth(date),
   };
 }
+
+/** Render legacy dates without crashing the repair form or detail panel. */
+export function formatStoredDate(value: string, pattern: string): string {
+  try { return format(parseDate(value), pattern); }
+  catch { return "Datum ungültig – bitte korrigieren"; }
+}

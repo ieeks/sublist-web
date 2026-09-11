@@ -115,3 +115,23 @@ No automated test writes to the live Firestore database.
 ## Übergabe an Claude Code
 
 See `CLAUDE_HANDOVER.md`.
+
+## Review follow-up
+
+- Desktop metrics no longer duplicate the monthly estimate. Breakdowns show top four
+  plus “Sonstige”, retaining the total while limiting the legend to five entries.
+- Save/validation/conflict feedback stays in the form and is not cleared by unrelated
+  snapshots. Save buttons are disabled while a write is pending. Global notices can be dismissed.
+- Existing subscriptions with invalid dates remain unchanged and editable; they are
+  excluded from forecasts until corrected. Other subscriptions can still be saved.
+- Legacy migration checks server existence before validating obsolete local data,
+  records a completion marker, and preserves the local backup on skipped/invalid data.
+- Start-date/cycle corrections do not backfill history before `historyThrough`; the
+  form states this explicitly. Paused subscriptions do not show a next-payment date.
+- Estimated document size warns above 850,000 bytes and blocks growth above 950,000
+  bytes, leaving margin below Firestore's limit. No automatic truncation or deletion.
+  Deletion uses stored data without generating additional history, and size-reducing
+  writes remain possible even above the warning/safety margin. For a permanently
+  large collection, separate history storage remains a future architecture decision.
+
+Size calculation reference: https://firebase.google.com/docs/firestore/storage-size

@@ -29,3 +29,14 @@ export function validateDraft(draft: SubscriptionDraft): void {
     if (draft.archivedAt < draft.startDate) throw new Error('Das Archivdatum liegt vor dem Startdatum.');
   }
 }
+
+/** Legacy records remain editable; invalid dates must not block unrelated subscriptions. */
+export function subscriptionDateError(sub: import('./types').Subscription): string | null {
+  try {
+    parseDate(sub.startDate);
+    if (sub.archivedAt) parseDate(sub.archivedAt);
+    if (sub.historyThrough) parseDate(sub.historyThrough);
+    if (!['monthly', 'quarterly', 'yearly'].includes(sub.billingCycle)) throw new Error();
+    return null;
+  } catch { return 'Datum ungültig – bitte korrigieren'; }
+}

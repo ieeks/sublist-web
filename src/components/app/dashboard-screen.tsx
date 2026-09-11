@@ -7,6 +7,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
+import { topWithOthers } from "@/lib/dashboard";
+import { subscriptionDateError } from "@/lib/validation";
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { LoadingSpinner } from "@/components/app/loading-spinner";
 import { SubscriptionDetail } from "@/components/app/subscription-detail";
@@ -21,7 +23,7 @@ export function DashboardScreen() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const subscriptions = useMemo(
-    () => data.subscriptions.filter((item) => item.status === "active"),
+    () => data.subscriptions.filter((item) => item.status === "active" && !subscriptionDateError(item)),
     [data.subscriptions],
   );
   const selectedId = searchParams.get("subscription") ?? undefined;
@@ -49,7 +51,7 @@ export function DashboardScreen() {
     .slice(0, 6);
   const upcoming = launches.slice(0, 3);
 
-  const categoryBreakdown = data.categories
+  const allCategories = data.categories
     .map((category) => ({
       name: category.name,
       color: category.color,
@@ -62,10 +64,9 @@ export function DashboardScreen() {
         ),
     }))
     .filter((item) => item.value > 0)
-    .sort((left, right) => right.value - left.value)
-;
+    .sort((left, right) => right.value - left.value);
 
-  const paymentBreakdown = data.paymentMethods
+  const allPayments = data.paymentMethods
     .map((method) => ({
       name: method.name,
       color: method.color,
@@ -78,12 +79,13 @@ export function DashboardScreen() {
         ),
     }))
     .filter((item) => item.value > 0)
-    .sort((left, right) => right.value - left.value)
-;
+    .sort((left, right) => right.value - left.value);
 
+  const categoryBreakdown = topWithOthers(allCategories);
+  const paymentBreakdown = topWithOthers(allPayments);
   const maxCategory = Math.max(...categoryBreakdown.map((item) => item.value), 1);
   const maxPayment = Math.max(...paymentBreakdown.map((item) => item.value), 1);
-  const aiSpend = categoryBreakdown.find((item) => item.name === "AI")?.value ?? 0;
+  const aiSpend = allCategories.find((item) => item.name === "AI")?.value ?? 0;
 
   if (!ready) return <LoadingSpinner />;
 
@@ -247,11 +249,7 @@ export function DashboardScreen() {
       <div className="hidden lg:block">
         <div className="grid grid-cols-[minmax(0,1fr)_252px] gap-5 xl:grid-cols-[minmax(0,1fr)_264px]">
           <div>
-          <div className="grid grid-cols-3 gap-4">
-            <MetricCard
-              label="Monthly estimate"
-              value={formatCurrency(averagePerMonth, defaultCurrency)}
-            />
+          <div className="grid grid-cols-2 gap-4">
             <MetricCard
               label="Average per month"
               value={formatCurrency(averagePerMonth, defaultCurrency)}
@@ -503,7 +501,7 @@ function MobileDonutChart({
         />
         {data.map((segment, index) => {
           const segProportion = segment.value / Math.max(total, 1);
-          const dashLength = Math.max(0, segProportion * circumference - GAP);
+          const dashLength = segProportion * circumference - Math.min(GAP, segProportion * circumference * 0.2);
           const angle = -90 + data.slice(0, index).reduce((sum, item) => sum + item.value, 0) / Math.max(total, 1) * 360;
           return (
             <circle

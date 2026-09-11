@@ -98,7 +98,8 @@ function toDraft(subscription?: Subscription): SubscriptionDraft {
 // ── Shared state hook ─────────────────────────────────────────────────────────
 
 function useFormState(subscription?: Subscription) {
-  const { data, addOrUpdateSubscription } = useAppData();
+  const { data, saving, addOrUpdateSubscription } = useAppData();
+  const [formError, setFormError] = useState<string | null>(null);
   const [draft, setDraft] = useState<SubscriptionDraft>(() => toDraft(subscription));
   const [iconSearch, setIconSearch] = useState("");
   const [iconResults, setIconResults] = useState<
@@ -137,14 +138,19 @@ function useFormState(subscription?: Subscription) {
   }, [iconSearch]);
 
   function update<K extends keyof SubscriptionDraft>(key: K, value: SubscriptionDraft[K]) {
+    setFormError(null);
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
   async function submit(onDone: () => void) {
-    if (await addOrUpdateSubscription(draft, subscription)) onDone();
+    if (saving) return;
+    setFormError(null);
+    const result = await addOrUpdateSubscription(draft, subscription);
+    if (result.ok) onDone();
+    else setFormError(result.error);
   }
 
-  return { data, draft, update, submit, iconSearch, setIconSearch, iconResults: iconSearch.trim() ? iconResults : [] };
+  return { data, saving, formError, draft, update, submit, iconSearch, setIconSearch, iconResults: iconSearch.trim() ? iconResults : [] };
 }
 
 // ── Mobile-only detect ────────────────────────────────────────────────────────
@@ -212,7 +218,7 @@ function MobileFormBody({
   onClose: () => void;
 }) {
   const T = useTokens();
-  const { data, draft, update, submit, iconSearch, setIconSearch, iconResults } =
+  const { data, saving, formError, draft, update, submit, iconSearch, setIconSearch, iconResults } =
     useFormState(subscription);
 
   const isEdit = !!subscription;
@@ -438,9 +444,13 @@ function MobileFormBody({
         </FieldRow>
       </div>
 
+      {formError && <p role="alert" className="mb-3 rounded-lg bg-red-100 p-3 text-sm text-red-900">{formError}</p>}
+      {isEdit && <p className="mb-3 text-xs text-[var(--sub)]">Änderungen an Startdatum oder Zyklus gelten für künftige Schätzungen. Vorhandene Historie bleibt unverändert.</p>}
       {/* Submit */}
       <button
         type="button"
+        disabled={saving}
+        aria-busy={saving}
         onClick={() => submit(onClose)}
         style={{
           width: '100%', padding: 16, borderRadius: 16,
@@ -449,7 +459,7 @@ function MobileFormBody({
         }}
       >
         <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>
-          {isEdit ? 'Speichern' : 'Hinzufügen'}
+          {saving ? 'Wird gespeichert …' : isEdit ? 'Speichern' : 'Hinzufügen'}
         </span>
       </button>
     </div>
@@ -487,7 +497,7 @@ function DesktopFormBody({
   onOpenChange: (open: boolean) => void;
   subscription?: Subscription;
 }) {
-  const { data, draft, update, submit, iconSearch, setIconSearch, iconResults } =
+  const { data, saving, formError, draft, update, submit, iconSearch, setIconSearch, iconResults } =
     useFormState(subscription);
 
   const isKnownKey = KNOWN_SERVICES.some((s) => s.key === draft.logoKey);
@@ -665,8 +675,8 @@ function DesktopFormBody({
               <span className="text-sm font-medium text-[#475569]">Start date</span>
               <Input
                 type="date"
-            required
-            min="1900-01-01"
+                required
+                min="1900-01-01"
                 value={draft.startDate}
                 onChange={(event) => update("startDate", event.target.value)}
               />
@@ -750,7 +760,9 @@ function DesktopFormBody({
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit">{subscription ? "Save changes" : "Create entry"}</Button>
+          {formError && <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-900">{formError}</p>}
+          {subscription && <p className="text-xs text-[var(--sub)]">Änderungen an Startdatum oder Zyklus gelten für künftige Schätzungen. Vorhandene Historie bleibt unverändert.</p>}
+          <Button type="submit" disabled={saving} aria-busy={saving}>{saving ? "Wird gespeichert …" : subscription ? "Save changes" : "Create entry"}</Button>
         </div>
       </form>
     </>

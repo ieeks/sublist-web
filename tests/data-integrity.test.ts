@@ -105,3 +105,21 @@ test('historical amounts use their recorded currencies', () => {
   const entries = [{ id: '1', subscriptionId: sub.id, date: '2026-01-01', amountCents: 1000, currency: 'EUR' }, { id: '2', subscriptionId: sub.id, date: '2026-02-01', amountCents: 2000, currency: 'USD' }];
   assert.equal(summarizeTotalSpent(sub.id, entries, 'EUR', { EUR: 1, USD: 2 }), 2000);
 });
+
+test('one broken legacy date stays unchanged and does not block other subscriptions', () => {
+  const broken = { ...sub, id: 'broken', startDate: 'invalid' };
+  const current = refreshHistory(data([broken, sub]), now);
+  assert.deepEqual(current.subscriptions[0], broken);
+  assert.equal(current.paymentHistory.some(e => e.subscriptionId === 'broken'), false);
+  const updated = upsertSubscription(current, { ...sub, notes: 'Still editable' }, sub, now);
+  assert.equal(updated.subscriptions[1].notes, 'Still editable');
+  const repaired = upsertSubscription(updated, { ...broken, startDate: '2024-01-01' }, broken, now);
+  assert.equal(repaired.subscriptions[0].startDate, '2024-01-01');
+  assert.equal(repaired.paymentHistory.filter(e => e.subscriptionId === 'broken').length, 33);
+});
+
+test('retroactive start-date edits deliberately preserve the historical checkpoint', () => {
+  const current = refreshHistory(data(), now);
+  const updated = upsertSubscription(current, { ...sub, startDate: '2020-01-01' }, sub, now);
+  assert.deepEqual(updated.paymentHistory, current.paymentHistory);
+});
