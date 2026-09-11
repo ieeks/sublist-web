@@ -1,20 +1,17 @@
 # TODO
 
-## Offene Features
+## Manuell
 
-- Benachrichtigungs-Toggles (Settings) mit echten Push Notifications verbinden
-- CSV-Import: Validierung und Fehlerfeedback verbessern
-- Payment-History editierbar machen (statt nur Demo-Daten)
-- JSON-Backup/Restore als Alternative zu CSV
-- EUR-Subtext auf Dashboard-Karten (Mobile)
-- Status `paused` konsistent behandeln: wird aktuell weder aus Summen noch aus dem Kalender
-  ausgenommen (im Gegensatz zu `archived`)
+- Firebase-Owner-Zugriff aktivieren und testen: [Anleitung](docs/firebase-owner-setup.md).
+- Nach Rollout Mobile/Desktop sowie Anmeldung und Synchronisierung auf zwei Geräten prüfen.
 
-## Deployment
+## Optionale Features
 
-- Nach jedem Push auf `main` den GitHub Actions Workflow unter `ieeks/sublist-web` → Actions prüfen
-- Live-Site nach Visual-Änderungen verifizieren (basePath ist production-only)
+- Echte Erinnerungen statt des Status „Noch nicht verfügbar“.
+- Vollständiges JSON-Backup/Restore mit Vorschau.
+- Historische Zahlungen manuell bestätigen/korrigieren; automatische Werte sind Schätzungen.
 
-## Dokumentation
+## Laufende Qualität
 
-- `CLAUDE_HANDOVER.md` bei jeder größeren Änderung aktualisieren
+- Regressionstests, Lint und Build vor Merge grün halten.
+- Bei Änderungen `CLAUDE_HANDOVER.md` aktualisieren.

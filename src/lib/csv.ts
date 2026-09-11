@@ -1,3 +1,4 @@
+import { validateDraft } from "./validation";
 import type { PaymentHistoryItem, Subscription, SubscriptionDraft } from "@/lib/types";
 
 const SUBSCRIPTION_HEADERS = [
@@ -20,7 +21,7 @@ const PAYMENT_HEADERS = ["id", "subscriptionId", "date", "amount", "currency", "
 
 function escapeCsv(value: string | number | undefined) {
   const raw = String(value ?? "");
-  if (raw.includes(",") || raw.includes('"') || raw.includes("\n")) {
+  if (raw.includes(",") || raw.includes('"') || raw.includes("\n") || raw.includes("\r")) {
     return `"${raw.replaceAll('"', '""')}"`;
   }
   return raw;
@@ -67,62 +68,53 @@ export function paymentHistoryToCsv(paymentHistory: PaymentHistoryItem[]) {
   return [PAYMENT_HEADERS.join(","), ...rows].join("\n");
 }
 
-function parseCsvRow(row: string) {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < row.length; index += 1) {
-    const character = row[index];
-    const next = row[index + 1];
-
-    if (character === '"' && inQuotes && next === '"') {
-      current += '"';
-      index += 1;
-      continue;
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [], cell = "", quoted = false, closed = false;
+  text = text.replace(/^\uFEFF/, "");
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (quoted) {
+      if (char === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (char === '"') { quoted = false; closed = true; }
+      else cell += char;
+    } else if (char === ',') { row.push(cell); cell = ""; closed = false; }
+    else if (char === '\n' || char === '\r') {
+      if (char === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = ""; closed = false;
+    } else if (char === '"' && !cell && !closed) quoted = true;
+    else {
+      if (closed || char === '"') throw new Error("Ungültige CSV-Anführungszeichen.");
+      cell += char;
     }
-
-    if (character === '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    if (character === "," && !inQuotes) {
-      values.push(current);
-      current = "";
-      continue;
-    }
-
-    current += character;
   }
-
-  values.push(current);
-  return values;
+  if (quoted) throw new Error("Ein CSV-Feld ist nicht geschlossen.");
+  if (cell || row.length || closed) { row.push(cell); rows.push(row); }
+  return rows.filter(row => row.some(cell => cell.trim()));
 }
 
 export function parseSubscriptionsCsv(csvText: string): SubscriptionDraft[] {
-  const [headerRow, ...rows] = csvText.trim().split(/\r?\n/);
-  if (!headerRow) return [];
-
-  const headers = parseCsvRow(headerRow);
-  const indexMap = Object.fromEntries(headers.map((header, index) => [header, index]));
-
-  return rows
-    .filter(Boolean)
-    .map((row) => parseCsvRow(row))
-    .map((columns) => ({
-      id: columns[indexMap.id] || undefined,
-      name: columns[indexMap.name] || "",
-      logoKey: columns[indexMap.logoKey] || "custom",
-      amount: columns[indexMap.amount] || "0",
-      currency: columns[indexMap.currency] || "EUR",
-      billingCycle: (columns[indexMap.billingCycle] as SubscriptionDraft["billingCycle"]) || "monthly",
-      categoryId: columns[indexMap.categoryId] || "uncategorized",
-      paymentMethodId: columns[indexMap.paymentMethodId] || "manual",
-      status: (columns[indexMap.status] as SubscriptionDraft["status"]) || "active",
-      archivedAt: columns[indexMap.archivedAt] || undefined,
-      startDate: columns[indexMap.startDate] || new Date().toISOString().slice(0, 10),
-      rewards: columns[indexMap.rewards] || "",
-      notes: columns[indexMap.notes] || "",
-    }));
+  const [headers, ...rows] = parseCsv(csvText);
+  if (!headers || !rows.length) throw new Error("Die Datei enthält keine Abos.");
+  const required = ["name", "amount", "currency", "billingCycle", "startDate", "status"];
+  if (new Set(headers).size !== headers.length || required.some(h => !headers.includes(h))) {
+    throw new Error("Ungültige CSV-Spalten. Bitte einen Sublist-Export verwenden.");
+  }
+  const ids = new Set<string>();
+  return rows.map((columns, index) => {
+    if (columns.length !== headers.length) throw new Error(`CSV-Zeile ${index + 2}: falsche Spaltenanzahl.`);
+    const values = Object.fromEntries(headers.map((header, i) => [header, columns[i]]));
+    const draft: SubscriptionDraft = {
+      id: values.id || undefined, name: values.name, logoKey: values.logoKey || "custom",
+      amount: values.amount, currency: values.currency,
+      billingCycle: values.billingCycle as SubscriptionDraft["billingCycle"],
+      categoryId: values.categoryId || "uncategorized", paymentMethodId: values.paymentMethodId || "manual",
+      status: values.status as SubscriptionDraft["status"], archivedAt: values.archivedAt || undefined,
+      startDate: values.startDate, rewards: values.rewards || "", notes: values.notes || "",
+    };
+    try { validateDraft(draft); } catch (error) { throw new Error(`CSV-Zeile ${index + 2}: ${(error as Error).message}`); }
+    if (draft.id && ids.has(draft.id)) throw new Error(`CSV-Zeile ${index + 2}: doppelte ID.`);
+    if (draft.id) ids.add(draft.id);
+    return draft;
+  });
 }

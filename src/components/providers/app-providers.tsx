@@ -3,7 +3,6 @@
 import { ThemeProvider, useTheme } from "next-themes";
 import {
   createContext,
-  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -11,17 +10,19 @@ import {
   useRef,
   useState,
 } from "react";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction } from "firebase/firestore";
 
+import { AuthGate } from "@/components/providers/auth-gate";
+import { assertDocumentFits, estimatedDocumentBytes } from "@/lib/document-size";
+import { subscriptionDateError } from "@/lib/validation";
 import { emptyAppData } from "@/data/seed";
 import { db } from "@/lib/firebase";
 import { migrateFromLocalStorageIfNeeded } from "@/lib/migrate";
 import { FALLBACK_RATES, fetchFxRates } from "@/lib/currencies";
-import { buildPaymentTimeline, calculateNextDueDate } from "@/lib/utils";
+import { changeStatus, draftToSubscription, mergeSubscriptions, refreshHistory, upsertSubscription } from "@/lib/app-state";
 import type {
   AppData,
   Category,
-  PaymentHistoryItem,
   PaymentMethod,
   SettingsState,
   Subscription,
@@ -34,62 +35,28 @@ const FIRESTORE_REF = doc(db, "sublist", "data");
 type AppContextValue = {
   data: AppData;
   ready: boolean;
+  saving: boolean;
+  error: string | null;
   fxRates: Record<string, number>;
-  addOrUpdateSubscription: (draft: SubscriptionDraft) => void;
-  deleteSubscription: (subscriptionId: string) => void;
+  addOrUpdateSubscription: (draft: SubscriptionDraft, previous?: Subscription) => Promise<{ ok: true } | { ok: false; error: string }>;
+  deleteSubscription: (subscriptionId: string) => Promise<boolean>;
   updateSubscriptionStatus: (
     subscriptionId: string,
     status: SubscriptionStatus,
-  ) => void;
-  updateSettings: (settings: Partial<SettingsState>) => void;
-  addCategory: (category: Omit<Category, "id">) => void;
-  removeCategory: (categoryId: string) => void;
-  updateCategory: (categoryId: string, updates: Partial<Omit<Category, "id">>) => void;
-  addPaymentMethod: (method: Omit<PaymentMethod, "id">) => void;
-  removePaymentMethod: (paymentMethodId: string) => void;
-  importSubscriptions: (rows: SubscriptionDraft[]) => void;
-  replaceAllData: (nextData: AppData) => void;
+  ) => Promise<boolean>;
+  updateSettings: (settings: Partial<SettingsState>) => Promise<boolean>;
+  addCategory: (category: Omit<Category, "id">) => Promise<boolean>;
+  removeCategory: (categoryId: string) => Promise<boolean>;
+  updateCategory: (categoryId: string, updates: Partial<Omit<Category, "id">>) => Promise<boolean>;
+  addPaymentMethod: (method: Omit<PaymentMethod, "id">) => Promise<boolean>;
+  removePaymentMethod: (paymentMethodId: string) => Promise<boolean>;
+  importSubscriptions: (rows: SubscriptionDraft[]) => Promise<boolean>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function normalizeSubscription(subscription: Subscription): Subscription {
-  // Archived subscriptions freeze their due date at the moment they were archived.
-  if (subscription.status === "archived") return subscription;
-
-  return {
-    ...subscription,
-    nextDueDate: calculateNextDueDate(
-      subscription.startDate,
-      subscription.billingCycle,
-    ),
-  };
-}
-
-/** Keeps `archivedAt` in sync with the status — set on archive, dropped on restore. */
-function applyStatus(
-  subscription: Subscription,
-  status: SubscriptionStatus,
-): Subscription {
-  if (status === "archived") {
-    return {
-      ...subscription,
-      status,
-      archivedAt: subscription.archivedAt ?? today(),
-    };
-  }
-
-  const restored = { ...subscription, status };
-  delete restored.archivedAt;
-  return normalizeSubscription(restored);
 }
 
 const REMOVED_PAYMENT_METHOD_IDS = new Set(["amex-gold", "n26-virtual"]);
@@ -128,50 +95,7 @@ function normalizePaymentMethods(data: AppData): AppData {
 }
 
 function normalizeData(data: AppData): AppData {
-  const normalized = normalizePaymentMethods(data);
-  return {
-    ...normalized,
-    subscriptions: normalized.subscriptions.map(normalizeSubscription),
-  };
-}
-
-function buildPaymentHistoryForSubscription(
-  subscription: Subscription,
-): PaymentHistoryItem[] {
-  return buildPaymentTimeline(subscription).map((entry, index) => ({
-    id: `${subscription.id}-${index}-${entry.date.replace(/-/g, "")}`,
-    subscriptionId: subscription.id,
-    date: entry.date,
-    amountCents: entry.amountCents,
-    currency: subscription.currency,
-    note: "Auto-generated payment",
-  }));
-}
-
-function draftToSubscription(draft: SubscriptionDraft): Subscription {
-  // Firestore rejects `undefined`, so the key is only present while archived.
-  const archived =
-    draft.status === "archived" ? { archivedAt: draft.archivedAt ?? today() } : {};
-
-  return {
-    ...archived,
-    id:
-      draft.id ??
-      draft.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") ??
-      createId("subscription"),
-    name: draft.name,
-    logoKey: draft.logoKey,
-    amountCents: Math.round(Number.parseFloat((draft.amount || "0").replace(",", ".")) * 100),
-    currency: draft.currency,
-    billingCycle: draft.billingCycle,
-    categoryId: draft.categoryId,
-    paymentMethodId: draft.paymentMethodId,
-    rewards: draft.rewards,
-    startDate: draft.startDate,
-    status: draft.status,
-    notes: draft.notes,
-    nextDueDate: calculateNextDueDate(draft.startDate, draft.billingCycle),
-  };
+  return refreshHistory(normalizePaymentMethods(data));
 }
 
 function ThemeSync({ children }: { children: React.ReactNode }) {
@@ -190,108 +114,96 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(emptyAppData);
   const [ready, setReady] = useState(false);
 
-  // Suppress Firestore writes until initial load is done
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const initializedRef = useRef(false);
+  const savingRef = useRef(false);
+
+  useEffect(() => { fetchFxRates().then(setFxRates).catch(() => {}); }, []);
 
   useEffect(() => {
-    fetchFxRates().then(setFxRates).catch(() => {});
-  }, []);
-
-  // Subscribe to Firestore immediately; run migration in parallel
-  useEffect(() => {
-    let cancelled = false;
-
-    const unblock = () => {
-      if (!initializedRef.current) {
-        initializedRef.current = true;
-        setReady(true);
-      }
-    };
-
-    // Safety net: unblock the UI after 8 s if Firestore hasn't responded
-    const timeout = setTimeout(unblock, 8000);
-
-    const unsub = onSnapshot(
-      FIRESTORE_REF,
-      (snap) => {
-        if (cancelled) return;
-        clearTimeout(timeout);
-
-        if (snap.exists()) {
-          setData(normalizeData(snap.data() as AppData));
-        } else {
-          const empty = emptyAppData();
-          setDoc(FIRESTORE_REF, empty);
-          setData(empty);
+    const timeout = setTimeout(() => setError("Daten konnten noch nicht vom Server geladen werden. Bitte die Verbindung prüfen."), 8000);
+    const unsub = onSnapshot(FIRESTORE_REF, { includeMetadataChanges: true }, snap => {
+      try {
+        // An empty offline cache does not prove that the server document is empty.
+        if (snap.exists()) setData(normalizeData(snap.data() as AppData));
+        else if (!snap.metadata.fromCache) setData(emptyAppData());
+        if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
+          clearTimeout(timeout);
+          initializedRef.current = true;
+          setReady(true);
+          setError(null);
         }
-
-        unblock();
-      },
-      (error) => {
-        console.error("[Sublist] Firestore snapshot error:", error);
-        clearTimeout(timeout);
-        unblock();
-      },
-    );
-
-    // Migration runs in parallel, fire-and-forget
-    migrateFromLocalStorageIfNeeded().catch(() => {});
-
-    return () => {
-      cancelled = true;
+      } catch {
+        initializedRef.current = false;
+        setError("Die gespeicherten Daten sind ungültig. Es wurde nichts überschrieben.");
+      }
+    }, () => {
       clearTimeout(timeout);
-      unsub();
-    };
-  }, []);
-
-  // Persist state change to Firestore (after initial load)
-  const persist = useCallback((nextData: AppData) => {
-    if (!initializedRef.current) return;
-    setDoc(FIRESTORE_REF, nextData).catch(() => {});
-  }, []);
-
-  // Mutate state + fire immediate Firestore write
-  const mutate = useCallback((updater: (current: AppData) => AppData) => {
-    setData((current) => {
-      const next = updater(current);
-      persist(next);
-      return next;
+      initializedRef.current = false;
+      setError("Datenzugriff fehlgeschlagen. Bitte Anmeldung, Verbindung und Firebase-Regeln prüfen.");
     });
-  }, [persist]);
+    // Migration itself is transactional and cannot overwrite an existing document.
+    migrateFromLocalStorageIfNeeded().catch(() => setError("Die Übernahme alter lokaler Daten ist fehlgeschlagen. Die lokale Kopie bleibt erhalten."));
+    return () => { clearTimeout(timeout); unsub(); };
+  }, []);
+
+  // Read the latest server version on every write. Firestore retries concurrent changes.
+  // No side effects inside React state updaters and no offline overwrite queue.
+  const mutate = useCallback(async (updater: (current: AppData) => AppData, reportError: (message: string | null) => void = setActionError, refresh = true): Promise<boolean> => {
+    if (!initializedRef.current) { reportError("Bitte warten, bis die Daten erfolgreich geladen wurden."); return false; }
+    if (savingRef.current) { reportError("Ein Speichervorgang läuft bereits. Bitte kurz warten."); return false; }
+    savingRef.current = true;
+    setSaving(true);
+    reportError(null);
+    try {
+      await runTransaction(db, async transaction => {
+        const snap = await transaction.get(FIRESTORE_REF);
+        const stored = snap.exists() ? snap.data() as AppData : emptyAppData();
+        const current = refresh ? normalizeData(stored) : normalizePaymentMethods(stored);
+        const next = updater(current);
+        assertDocumentFits(next, stored);
+        transaction.set(FIRESTORE_REF, next);
+      });
+      return true;
+    } catch (cause) {
+      reportError(cause instanceof Error ? `Nicht gespeichert: ${cause.message}` : "Speichern fehlgeschlagen. Bitte erneut versuchen.");
+      return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let day = new Date().toDateString();
+    const timer = setInterval(() => {
+      const nextDay = new Date().toDateString();
+      if (nextDay !== day) { day = nextDay; setData(current => normalizeData(current)); }
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const value = useMemo<AppContextValue>(
     () => ({
       data,
       ready,
+      saving,
+      error,
       fxRates,
-      addOrUpdateSubscription: (draft) => {
-        const subscription = draftToSubscription(draft);
-        mutate((current) => {
-          const existingIndex = current.subscriptions.findIndex(
-            (item) => item.id === subscription.id,
-          );
-          const nextSubscriptions =
-            existingIndex >= 0
-              ? current.subscriptions.map((item, index) =>
-                  index === existingIndex ? subscription : item,
-                )
-              : [...current.subscriptions, subscription];
-          const nextPaymentHistory = [
-            ...current.paymentHistory.filter(
-              (entry) => entry.subscriptionId !== subscription.id,
-            ),
-            ...buildPaymentHistoryForSubscription(subscription),
-          ];
-
-          return {
-            ...current,
-            subscriptions: nextSubscriptions,
-            paymentHistory: nextPaymentHistory,
-          };
-        });
+      addOrUpdateSubscription: async (draft, previous) => {
+        try {
+          const subscription = draftToSubscription(draft);
+          let message = "Speichern fehlgeschlagen.";
+          const ok = await mutate(current => upsertSubscription(current, subscription, previous), value => { if (value) message = value; });
+          return ok ? { ok: true } : { ok: false, error: message };
+        } catch (cause) {
+          return { ok: false, error: (cause as Error).message };
+        }
       },
       deleteSubscription: (subscriptionId) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           subscriptions: current.subscriptions.filter(
             (subscription) => subscription.id !== subscriptionId,
@@ -299,40 +211,27 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           paymentHistory: current.paymentHistory.filter(
             (entry) => entry.subscriptionId !== subscriptionId,
           ),
-        }));
+        }), setActionError, false);
       },
       updateSubscriptionStatus: (subscriptionId, status) => {
-        mutate((current) => {
+        return mutate((current) => {
           const target = current.subscriptions.find(
             (subscription) => subscription.id === subscriptionId,
           );
           if (!target) return current;
 
-          const updated = applyStatus(target, status);
-
-          return {
-            ...current,
-            subscriptions: current.subscriptions.map((subscription) =>
-              subscription.id === subscriptionId ? updated : subscription,
-            ),
-            // Archiving cuts the timeline at the archive date, restoring rebuilds it.
-            paymentHistory: [
-              ...current.paymentHistory.filter(
-                (entry) => entry.subscriptionId !== subscriptionId,
-              ),
-              ...buildPaymentHistoryForSubscription(updated),
-            ],
-          };
+          const updated = changeStatus(target, status);
+          return { ...current, subscriptions: current.subscriptions.map(s => s.id === subscriptionId ? updated : s) };
         });
       },
       updateSettings: (settings) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           settings: { ...current.settings, ...settings },
         }));
       },
       addCategory: (category) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           categories: [
             ...current.categories,
@@ -341,13 +240,13 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       removeCategory: (categoryId) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           categories: current.categories.filter((item) => item.id !== categoryId),
         }));
       },
       updateCategory: (categoryId, updates) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           categories: current.categories.map((cat) =>
             cat.id === categoryId ? { ...cat, ...updates } : cat,
@@ -355,7 +254,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       addPaymentMethod: (method) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           paymentMethods: [
             ...current.paymentMethods,
@@ -364,77 +263,42 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       removePaymentMethod: (paymentMethodId) => {
-        mutate((current) => ({
+        return mutate((current) => ({
           ...current,
           paymentMethods: current.paymentMethods.filter(
             (method) => method.id !== paymentMethodId,
           ),
         }));
       },
-      importSubscriptions: (rows) => {
-        startTransition(() => {
-          mutate((current) => {
-            const imported = rows.map(draftToSubscription);
-            const mergedCategories = [...current.categories];
-            const mergedMethods = [...current.paymentMethods];
-
-            imported.forEach((subscription) => {
-              if (
-                !mergedCategories.find((category) => category.id === subscription.categoryId)
-              ) {
-                mergedCategories.push({
-                  id: subscription.categoryId,
-                  name: subscription.categoryId,
-                  color: "#7c8aa5",
-                });
-              }
-              if (
-                !mergedMethods.find((method) => method.id === subscription.paymentMethodId)
-              ) {
-                mergedMethods.push({
-                  id: subscription.paymentMethodId,
-                  name: subscription.paymentMethodId,
-                  type: "credit_card",
-                  color: "#6b7280",
-                });
-              }
-            });
-
-            const importedIds = new Set(imported.map((subscription) => subscription.id));
-
-            return {
-              ...current,
-              categories: mergedCategories,
-              paymentMethods: mergedMethods,
-              subscriptions: imported,
-              paymentHistory: [
-                ...current.paymentHistory.filter(
-                  (entry) => !importedIds.has(entry.subscriptionId),
-                ),
-                ...imported.flatMap(buildPaymentHistoryForSubscription),
-              ],
-            };
-          });
-        });
-      },
-      replaceAllData: (nextData) => {
-        const normalized = normalizeData(nextData);
-        setData(normalized);
-        persist(normalized);
+      importSubscriptions: async (rows) => {
+        try {
+          if (!rows.length) throw new Error("Die Datei enthält keine Abos.");
+          const imported = rows.map(draftToSubscription);
+          return mutate(current => mergeSubscriptions(current, imported));
+        } catch (cause) { setActionError((cause as Error).message); return false; }
       },
     }),
-    [data, ready, fxRates, mutate, persist],
+    [data, ready, saving, error, fxRates, mutate],
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return <AppContext.Provider value={value}>
+    {error && <div role="alert" className="fixed inset-x-0 top-0 z-[100] bg-red-100 p-3 text-center text-sm text-red-900">{error} <button type="button" className="underline" onClick={() => window.location.reload()}>Neu laden</button> <button type="button" onClick={() => setError(null)}>Schließen</button></div>}
+    {actionError && <div role="alert" className="fixed inset-x-0 bottom-20 z-[100] bg-red-100 p-3 text-center text-sm text-red-900">{actionError} <button type="button" onClick={() => setActionError(null)}>Schließen</button></div>}
+    {ready && data.subscriptions.some(sub => subscriptionDateError(sub)) && <p role="status" className="bg-amber-100 p-3 text-sm text-amber-900">Einige Abos haben ungültige Datumswerte. Bitte in der Abo-Liste bearbeiten. Bis dahin werden dafür keine neuen Zahlungen berechnet.</p>}
+    {ready && estimatedDocumentBytes(data) > 850_000 && <p role="status" className="bg-amber-100 p-3 text-sm text-amber-900">Der Speicher wird knapp. Bitte Abos und Historie exportieren; nicht mehr benötigte Abos können weiterhin gelöscht werden.</p>}
+    {saving && <div role="status" className="fixed right-3 top-3 z-[100] rounded bg-[var(--surface)] p-2 text-sm">Wird gespeichert …</div>}
+    {ready ? children : <div role="status" className="p-8 text-center">Daten werden geladen …</div>}
+  </AppContext.Provider>;
 }
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <AuthGate>
       <AppStateProvider>
         <ThemeSync>{children}</ThemeSync>
       </AppStateProvider>
+      </AuthGate>
     </ThemeProvider>
   );
 }

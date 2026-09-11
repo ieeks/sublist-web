@@ -4,6 +4,7 @@ import { useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Archive, ArchiveRestore, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 
+import { subscriptionDateError } from "@/lib/validation";
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { LoadingSpinner } from "@/components/app/loading-spinner";
 import { MobileDetailSheet } from "@/components/app/mobile-detail-sheet";
@@ -31,6 +32,7 @@ import { convertCurrency, toEurCents } from "@/lib/currencies";
 import {
   daysUntil,
   formatCurrency,
+  formatStoredDate,
   summarizeTotalSpent,
   toMonthlyAmount,
 } from "@/lib/utils";
@@ -88,7 +90,7 @@ export function SubscriptionsScreen() {
           if (cycleFilter === 'Jährlich')  return subscription.billingCycle === 'yearly';
           return true;
         })
-        .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate)),
+        .sort((left, right) => (left.nextDueDate ?? "").localeCompare(right.nextDueDate ?? "")),
     [categoryFilter, cycleFilter, data.subscriptions, deferredQuery, paymentFilter],
   );
 
@@ -118,7 +120,7 @@ export function SubscriptionsScreen() {
 
   const defaultCurrency = data.settings.defaultCurrency;
 
-  const totalDue = filteredSubscriptions.reduce(
+  const totalDue = filteredSubscriptions.filter(s => s.status === "active").reduce(
     (sum, sub) => sum + convertCurrency(toMonthlyAmount(sub.amountCents, sub.billingCycle), sub.currency, defaultCurrency, fxRates),
     0,
   );
@@ -127,7 +129,7 @@ export function SubscriptionsScreen() {
     (sum, sub) =>
       sum +
       convertCurrency(
-        summarizeTotalSpent(sub.id, data.paymentHistory),
+        summarizeTotalSpent(sub.id, data.paymentHistory, sub.currency, fxRates),
         sub.currency,
         defaultCurrency,
         fxRates,
@@ -156,7 +158,7 @@ export function SubscriptionsScreen() {
               <div className="text-[13px] mt-0.5" style={{ color: "var(--sub)" }}>
                 {isArchiveView ? (
                   <>
-                    {archivedCount} archiviert · ausgegeben:{" "}
+                    {archivedCount} archiviert · geschätzt:{" "}
                     <span className="font-semibold" style={{ color: "var(--text)" }}>
                       {formatCurrency(archivedTotalSpent, defaultCurrency)}
                     </span>
@@ -272,7 +274,7 @@ export function SubscriptionsScreen() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[12px] text-[#a1a8b8]">
-                    {isArchiveView ? "Archiviert · gesamt ausgegeben" : "Total due"}
+                    {isArchiveView ? "Archiviert · geschätzt ausgegeben" : "Total due"}
                   </div>
                   <div className="mt-2 text-[24px] font-semibold tracking-[-0.05em] text-[#4b5263]">
                     {formatCurrency(
@@ -419,7 +421,7 @@ export function SubscriptionsScreen() {
                               ? subscription.archivedAt
                                 ? formatDateLabel(subscription.archivedAt)
                                 : "—"
-                              : formatDateLabel(subscription.nextDueDate)}
+                              : (subscriptionDateError(subscription) ?? (subscription.status === "paused" ? "Pausiert" : formatDateLabel(subscription.nextDueDate)))}
                           </div>
                         </div>
                       </div>
@@ -479,7 +481,7 @@ function SwipeDeleteRow({
 
   const category = categories.find((c) => c.id === subscription.categoryId);
   const daysLeft = daysUntil(subscription.nextDueDate);
-  const isUrgent = daysLeft <= 7;
+  const isUrgent = subscription.status === "active" && !subscriptionDateError(subscription) && daysLeft <= 7;
   const eurCents =
     subscription.currency !== "EUR"
       ? toEurCents(subscription.amountCents, subscription.currency, fxRates)
@@ -620,7 +622,7 @@ function SwipeDeleteRow({
               style={{ color: isUrgent ? "#f97316" : "var(--text)" }}
             >
               {isUrgent && "⚡ "}
-              {formatDateLabel(subscription.nextDueDate)}
+              {(subscriptionDateError(subscription) ?? (subscription.status === "paused" ? "Pausiert" : formatDateLabel(subscription.nextDueDate)))}
             </div>
           </div>
         </div>
@@ -794,6 +796,5 @@ function EmptyArchiveHint({ desktop = false }: { desktop?: boolean }) {
 }
 
 function formatDateLabel(date: string) {
-  const parsed = new Date(date);
-  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatStoredDate(date, "MMM d");
 }

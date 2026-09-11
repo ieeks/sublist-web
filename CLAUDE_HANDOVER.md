@@ -38,7 +38,7 @@ src/
       dashboard-screen.tsx    Dashboard mit Donut-Chart, Stat-Tiles, Upcoming
       subscriptions-screen.tsx  Liste + Swipe (Archiv/Delete) + Archiv-Ansicht + Mobile Detail Sheet
       calendar-screen.tsx     Monatsraster + Day Panel + Verlängerungsliste
-      settings-screen.tsx     4 Gruppen: Darstellung / Kategorien / Benachrichtigungen / Daten
+      settings-screen.tsx     Darstellung / Kategorien / Archiv / Benachrichtigungsstatus / Daten
       subscription-form-dialog.tsx  Mobile: BottomSheet mit Beliebt-Grid; Desktop: Dialog
       mobile-detail-sheet.tsx BottomSheet mit Swipe-to-close (Abo-Details, Edit, Delete)
       brand-avatar.tsx        Logo-Resolver (SVG-Map + simple-icons Fallback)
@@ -58,33 +58,25 @@ src/
     seed.ts                   Demo-Seeddaten (wird in Firestore geschrieben wenn leer)
 ```
 
-## 4) Datenfluss & Persistenz
+## 4) Datenfluss & Persistenz (Review-Korrekturen September 2026)
 
-- **Firestore-Dokument:** `sublist/data` enthält `AppData` (subscriptions, categories, paymentMethods, paymentHistory, settings).
-- **Startup:** `migrateFromLocalStorageIfNeeded()` prüft ob Firestore leer ist und kopiert ggf. bestehende localStorage-Daten rüber. Danach `onSnapshot` für Echtzeit-Updates.
-- **Schreiben:** Jede Mutation (addOrUpdateSubscription, deleteSubscription, updateSettings, …) ruft intern `mutate()` auf → debounced `setDoc` nach 600ms.
-- **`ready`-Flag:** `false` bis der erste Firestore-Snapshot da ist → Lade-Skeleton in SubscriptionsScreen greift.
-- **FX-Rates:** Beim App-Start von `open.er-api.com/v6/latest/EUR` geladen (CORS-kompatibel), hartcodierter Fallback bei Fehler. Unterstützte Währungen: EUR, USD, TRY, INR.
-- **Kein Auth:** Firestore-Rules erlauben `read/write: if true` auf `sublist/data`.
-
-## 4b) Archiv (gekündigte Abos)
-
-Gekündigte Abos gehören ins **Archiv** statt in den Papierkorb — Löschen entfernt auch die
-Zahlungshistorie und ist nicht rückgängig zu machen.
-
-- **Status:** `status: "archived"` + `archivedAt` (`yyyy-MM-dd`). Das Feld wird beim Archivieren
-  gesetzt und beim Reaktivieren wieder entfernt (Firestore verträgt kein `undefined`, deshalb
-  wird der Key gelöscht statt auf `undefined` gesetzt).
-- **Einstiegspunkte:** Detail-Panel (Desktop: `Archive`/`Restore`), Mobile Detail Sheet
-  (`Archivieren`/`Reaktivieren`), Swipe-Geste in der Liste (graue Archiv-Zone vor der roten
-  Lösch-Zone), Löschdialog (bietet Archivieren als Alternative an) und das Status-Feld im Formular.
-- **Archiv-Ansicht:** Segment-Tab `Aktiv | Archiv (n)` (Desktop) bzw. Archiv-Pill (Mobile) im
-  Subscriptions-Screen. Zeilen dort zeigen Archivdatum plus Reaktivieren/Endgültig-löschen.
-- **Ausschluss:** Archivierte Abos sind aus Dashboard, Liste, Kalender und allen Summen gefiltert;
-  `nextDueDate` wird für sie in `normalizeSubscription()` **nicht** mehr fortgeschrieben.
-- **Historie:** `buildPaymentTimeline()` endet am `archivedAt`, d.h. „Total spent" wächst nicht
-  weiter. Beim Reaktivieren wird die Timeline neu bis heute aufgebaut.
-- **CSV:** Spalte `archivedAt` wird exportiert und importiert.
+- Ein Dokument `sublist/data`, Mutationen ausschließlich über `mutate()` mit
+  `runTransaction`: aktuellen Serverstand lesen, reine Änderung anwenden, speichern.
+- Kein optimistischer Komplett-Overwrite und keine Offline-Schreibwarteschlange.
+  `ready` erst nach Server-Snapshot; Fehler werden sichtbar angezeigt.
+- Formulare reichen den ursprünglichen Abo-Stand mit ein. Unabhängige Änderungen
+  bleiben erhalten, Konflikte desselben Felds und inzwischen gelöschte Abos werden abgewiesen.
+- `src/lib/app-state.ts` enthält reine Funktionen für UUIDs, Status, Import und Historie.
+- Historie bleibt eine Schätzung. Bestehende Beträge/Währungen bleiben unverändert;
+  fehlende zukünftige Zahlungen werden ergänzt. `historyThrough` merkt den zuletzt
+  erfassten Tag und überspringt Pausen/Archivintervalle beim Wiederaufnehmen.
+- Legacy-Daten ohne Pause-/Preishistorie lassen sich nicht sicher rekonstruieren.
+- CSV ergänzt neue IDs und überspringt bestehende IDs. Keine Ersetzung der gesamten Liste.
+- Pausierte Abos bleiben in der bearbeitbaren Liste, zählen aber nicht zu Ausgaben
+  oder Kalender. Archivierte Abos bleiben separat erreichbar.
+- AuthGate wird mit `NEXT_PUBLIC_FIREBASE_ALLOWED_UID` aktiviert. Firebase-Console-
+  Schritte und echte serverseitige Regeln: `docs/firebase-owner-setup.md`.
+  Ohne Einrichtung ist das Sicherheitsproblem ausdrücklich noch offen.
 
 ## 5) Dark Mode
 
@@ -113,11 +105,10 @@ Zahlungshistorie und ist nicht rückgängig zu machen.
 
 ## 8) Offene Themen
 
-1. Benachrichtigungs-Toggles in Settings sind nur lokaler State — noch keine echte Push-Notification-Logik
-2. CSV-Import robuster machen (Validierung, Fehlerfeedback)
-3. Payment-History editierbar machen (statt nur Demo-Daten)
-4. JSON-Backup/Restore als Alternative zu CSV
-5. EUR-Subtext auf Dashboard-Karten (Mobile)
+1. Firebase-Owner-Anmeldung und Regeln manuell aktivieren (siehe Setup-Dokument).
+2. Mobile/Desktop mit echter Anmeldung und zwei Geräten nach Rollout prüfen.
+3. Echte Benachrichtigungen sind noch nicht implementiert; keine scheinbar aktiven Schalter.
+4. Optional: vollständiger JSON-Backup/Restore und manuell bestätigte Zahlungshistorie.
 
 ## 9) Done-Definition für Änderungen
 
@@ -133,3 +124,11 @@ Zahlungshistorie und ist nicht rückgängig zu machen.
 - **Tailwind v4:** kein `tailwind.config.ts`, Konfiguration liegt in `globals.css`.
 - Bei Route-/Asset-Änderungen `basePath`-Kompatibilität nicht brechen.
 - `.env.local` ist in `.gitignore` — niemals committen.
+
+## Review-Nacharbeit
+
+25 Regressionstests. Formularfehler lokal, Lade-/Aktionsfehler getrennt und schließbar.
+Beschädigte Bestandsdaten bleiben bearbeitbar, keine Historiengenerierung bis zur
+Datumskorrektur. Speicherwarnung/Write-Prüfung in `document-size.ts`; Löschpfad ohne
+History-Refresh, damit Speicherbereinigung möglich bleibt. Kleine Donut-Aufschlüsselung
+mit Top 4 + Sonstige. Details und bewusste `historyThrough`-Semantik in README.

@@ -42,6 +42,8 @@ export interface Subscription {
   rewards?: string;
   startDate: string;
   nextDueDate: string;
+  /** Last date covered by the estimated history; prevents backfilling paused periods. */
+  historyThrough?: string;
   notes: string;
   status: SubscriptionStatus;
   /** Set while status is "archived" (yyyy-MM-dd), removed on restore. */

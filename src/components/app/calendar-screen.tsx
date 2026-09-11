@@ -5,6 +5,7 @@ import { parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { subscriptionDateError } from "@/lib/validation";
 import { BrandAvatar } from "@/components/app/brand-avatar";
 import { MobileDetailSheet } from "@/components/app/mobile-detail-sheet";
 import { SubscriptionFormDialog } from "@/components/app/subscription-form-dialog";
@@ -48,14 +49,16 @@ const WEEKDAY_SH = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 function getOccurrenceDays(sub: Subscription, year: number, month: number): number[] {
   const monthStart = new Date(year, month, 1);
   const monthEnd   = new Date(year, month + 1, 0);
-  let cursor = parseISO(sub.startDate);
+  const anchor = parseISO(sub.startDate);
+  let cursor = anchor;
+  let period = 0;
   const days: number[] = [];
 
   while (cursor <= monthEnd) {
     if (cursor >= monthStart) {
       days.push(cursor.getDate());
     }
-    cursor = advanceDate(cursor, sub.billingCycle);
+    cursor = advanceDate(anchor, sub.billingCycle, ++period);
   }
   return days;
 }
@@ -67,7 +70,7 @@ function buildCalEvents(
   month: number,
 ): Record<number, Subscription[]> {
   return subscriptions
-    .filter((s) => s.status !== 'archived')
+    .filter((s) => s.status === 'active' && !subscriptionDateError(s))
     .reduce<Record<number, Subscription[]>>((map, sub) => {
       for (const day of getOccurrenceDays(sub, year, month)) {
         map[day] = [...(map[day] ?? []), sub];
