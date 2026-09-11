@@ -1,5 +1,7 @@
 "use client";
 
+import { format } from "date-fns";
+
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Search } from "lucide-react";
@@ -72,7 +74,7 @@ function toDraft(subscription?: Subscription): SubscriptionDraft {
     return {
       name: "", logoKey: "chatgpt", amount: "", currency: "EUR",
       billingCycle: "monthly", categoryId: "ai", paymentMethodId: "apple-card",
-      rewards: "", startDate: new Date().toISOString().slice(0, 10),
+      rewards: "", startDate: format(new Date(), "yyyy-MM-dd"),
       status: "active", notes: "",
     };
   }

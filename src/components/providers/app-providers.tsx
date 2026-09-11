@@ -125,6 +125,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       try {
         // An empty offline cache does not prove that the server document is empty.
         if (snap.exists()) setData(normalizeData(snap.data() as AppData));
+        else if (!snap.metadata.fromCache) setData(emptyAppData());
         if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
           clearTimeout(timeout);
           initializedRef.current = true;
